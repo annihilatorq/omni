@@ -1762,12 +1762,12 @@ namespace shadow {
                 return memory_checksum<Ty>{ section_content }.result();
             }
 
-        private:
-            dynamic_link_library find( hash64_t module_name ) const;
-
-            bool is_module_hash_valid( hash64_t module_hash, std::wstring_view module_name ) const {
+            static bool compare_dll_names( hash64_t module_hash, std::wstring_view module_name ) {
                 // Try to compare hash of full module name
                 const auto full_name_hash = hash64_t{}( module_name );
+
+                if ( module_name.size() <= 4 )
+                    return module_hash == full_name_hash;
 
                 // Try to compare hash of trimmed module name (.dll)
                 const auto trimmed_name = module_name.substr( 0, module_name.size() - 4 );
@@ -1777,6 +1777,8 @@ namespace shadow {
                 return full_name_hash == module_hash || trimmed_name_hash == module_hash;
             }
 
+        private:
+            dynamic_link_library find( hash64_t module_name ) const;
             win::loader_table_entry* m_data{ nullptr };
         };
 
@@ -1928,7 +1930,7 @@ namespace shadow {
                 const auto loaded_modules = module_enumerator{ skip_current_module };
 
                 for ( const auto& module : loaded_modules ) {
-                    if ( module_hash != 0 && is_module_hash_invalid( module_hash, module.name().view() ) )
+                    if ( module_hash != 0 && !dynamic_link_library::compare_dll_names( module_hash, module.name().view() ) )
                         continue;
 
                     export_enumerator exports{ module.base_address() };
@@ -1949,18 +1951,6 @@ namespace shadow {
                 }
 
                 return { 0, {} };
-            }
-
-            bool is_module_hash_invalid( hash64_t module_hash, std::wstring_view module_name ) const {
-                // Try to compare hash of full module name
-                auto full_name_hash = hash64_t{}( module_name );
-
-                // Try to compare hash of trimmed module name (.dll)
-                auto trimmed_name = module_name.substr( 0, module_name.size() - 4 );
-                auto trimmed_name_hash = hash64_t{}( trimmed_name );
-
-                // Verify both hashes
-                return full_name_hash != module_hash && trimmed_name_hash != module_hash;
             }
 
             export_with_location handle_forwarded_export( address_t address ) const {
@@ -1993,7 +1983,7 @@ namespace shadow {
         inline dynamic_link_library dynamic_link_library::find( hash64_t module_name ) const {
             module_enumerator modules{};
             auto it = modules.find_if( [=, this]( const dynamic_link_library& dll ) -> bool {
-                return !dll.name().view().empty() && is_module_hash_valid( module_name, dll.name().view() );
+                return !dll.name().view().empty() && dynamic_link_library::compare_dll_names( module_name, dll.name().view() );
             } );
             return it != modules.end() ? *it : dynamic_link_library{};
         }
