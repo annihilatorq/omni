@@ -2277,6 +2277,11 @@ namespace shadow {
                 m_cache_map.erase( key );
             }
 
+            void clear() {
+                std::scoped_lock lock( m_cache_mutex );
+                m_cache_map.clear();
+            }
+
             bool exists( key_t key ) {
                 std::shared_lock lock( m_cache_mutex );
                 return m_cache_map.find( key ) != m_cache_map.end();
@@ -2285,6 +2290,16 @@ namespace shadow {
             std::size_t size() const {
                 std::shared_lock lock( m_cache_mutex );
                 return m_cache_map.size();
+            }
+
+            auto begin() {
+                std::shared_lock lock( m_cache_mutex );
+                return m_cache_map.begin();
+            }
+
+            auto end() {
+                std::shared_lock lock( m_cache_mutex );
+                return m_cache_map.end();
             }
 
         private:
