@@ -1746,6 +1746,14 @@ namespace shadow {
         return full_name_hash == module_hash || trimmed_name_hash == module_hash;
       }
 
+      [[nodiscard]] auto present() const noexcept { return m_data != nullptr; }
+
+      [[nodiscard]] bool operator==(const dynamic_link_library& other) const noexcept {
+        return m_data == other.m_data;
+      }
+
+      [[nodiscard]] explicit operator bool() const noexcept { return present(); }
+
      private:
       dynamic_link_library find(hash64_t module_name) const;
       win::loader_table_entry* m_data{nullptr};
@@ -1936,7 +1944,7 @@ namespace shadow {
         auto real_export =
             find_export_address(hash64_t{}(real_export_name), hash64_t{}(module_name));
 
-        if (real_export.dll.raw() == nullptr) {
+        if (!real_export.dll.present()) {
           win::forwarder_string fwd_string{
               .dll = module_name,
               .function = real_export_name,
