@@ -26,12 +26,14 @@
 #include <filesystem>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <numeric>
 #include <optional>
 #include <ranges>
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <variant>
 
 namespace shadow::concepts {
@@ -52,6 +54,11 @@ namespace shadow::concepts {
   template <typename Ty>
   concept chrono_duration =
       std::is_base_of_v<std::chrono::duration<typename Ty::rep, typename Ty::period>, Ty>;
+  template <typename Ty>
+  concept const_pointer = std::is_const_v<std::remove_pointer_t<Ty>>;
+
+  template <typename Ptr>
+  using remove_const_ptr_t = std::add_pointer_t<std::remove_const_t<std::remove_pointer_t<Ptr>>>;
 
 }  // namespace shadow::concepts
 
@@ -248,7 +255,9 @@ namespace shadow {
         return std::filesystem::path{m_buffer, fmt};
       }
 
-      [[nodiscard]] auto view() const noexcept { return std::wstring_view{m_buffer}; }
+      [[nodiscard]] auto view() const noexcept {
+        return std::wstring_view{m_buffer, m_length / sizeof(char_t)};
+      }
 
       [[nodiscard]] auto string() const {
         // \note: Since std::codecvt & std::wstring_convert is
@@ -273,9 +282,25 @@ namespace shadow {
 
       [[nodiscard]] auto data() const noexcept { return m_buffer; }
       [[nodiscard]] auto size() const noexcept { return m_length; }
+      [[nodiscard]] auto empty() const noexcept { return m_buffer == nullptr || m_length == 0; }
 
       [[nodiscard]] bool operator==(const unicode_string& right) const noexcept {
         return m_buffer == right.m_buffer && m_length == right.m_length;
+      }
+
+      [[nodiscard]] bool operator==(std::wstring_view right) const noexcept {
+        return view() == right;
+      }
+
+      [[nodiscard]] bool operator==(std::string_view right) const noexcept {
+        const auto src_view = view();
+        if (src_view.size() != right.size())
+          return false;
+
+        auto wide_string_transformed_to_ascii = std::ranges::transform_view(
+            src_view, [](wchar_t wc) -> char { return static_cast<char>(wc); });
+
+        return std::ranges::equal(wide_string_transformed_to_ascii, right);
       }
 
       [[nodiscard]] explicit operator bool() const noexcept { return m_buffer != nullptr; }
@@ -446,12 +471,29 @@ namespace shadow {
       list_entry in_initialization_order_module_list;
     };
 
+    struct user_process_parameters {
+      uint8_t reserved1[16];
+      std::nullptr_t reserved2[10];
+      unicode_string image_path_name;
+      unicode_string command_line;
+    };
+
     struct PEB {
       uint8_t reserved1[2];
       uint8_t being_debugged;
       uint8_t reserved2[1];
       std::nullptr_t reserved3[2];
       module_loader_data* ldr_data;
+      user_process_parameters* process_parameters;
+      std::nullptr_t reserved4[3];
+      void* atl_thunk_list_head;
+      std::nullptr_t reserved5;
+      uint32_t reserved6;
+      std::nullptr_t reserved7;
+      uint32_t reserved8;
+      uint32_t atl_thunk_list_head32;
+      void* reserved9[45];
+      uint8_t reserved10[96];
 
       static auto address() noexcept {
 #if defined(_M_X64)
@@ -467,6 +509,54 @@ namespace shadow {
         return reinterpret_cast<module_loader_data*>(address()->ldr_data);
       }
     };
+
+    struct api_set_namespace {
+      uint32_t version;
+      uint32_t size;
+      uint32_t flags;
+      uint32_t count;
+      uint32_t entry_offset;
+      uint32_t hash_offset;
+      uint32_t hash_factor;
+    };
+
+    struct api_set_hash_entry {
+      uint32_t hash;
+      uint32_t index;
+    };
+
+    struct api_set_namespace_entry {
+      uint32_t flags;
+      uint32_t name_offset;
+      uint32_t name_length;
+      uint32_t hashed_length;
+      uint32_t value_offset;
+      uint32_t value_count;
+    };
+
+    struct api_set_value_entry {
+      uint32_t flags;
+      uint32_t name_offset;
+      uint32_t name_length;
+      uint32_t value_offset;
+      uint32_t value_length;
+    };
+
+    template <std::ranges::view StrTy, typename CharTy = std::ranges::range_value_t<StrTy>>
+    inline auto remove_api_set_version(const StrTy string) {
+      // It is rather a hack because it is impossible to declare a constant
+      // string for any of its types. The compiler will be able to
+      // substitute these ASCII characters for any type of string.
+      constexpr CharTy separator_bytes[] = {'-', 'l', '\0'};
+      const StrTy separator{separator_bytes, 2};
+      constexpr auto npos = StrTy::npos;
+
+      auto version_pos = string.rfind(separator);
+      if (version_pos == npos)
+        return StrTy{};
+
+      return string.substr(0, version_pos);
+    }
 
     struct section_header_t {
       section_string_t name;
@@ -1515,6 +1605,357 @@ namespace shadow {
       Ty m_result{0};
     };
 
+    class api_set_contract {
+      struct api_set_version {
+        uint16_t major;
+        uint16_t minor;
+        uint16_t micro;
+      };
+
+      template <std::integral Ty>
+      Ty convert_version_symbols_to_integral(std::wstring_view symbols) const noexcept {
+        using namespace std::ranges;
+
+        auto ascii_view = symbols | views::filter([](wchar_t c) { return c < 128; }) |
+                          views::transform([](wchar_t c) { return static_cast<char>(c); }) |
+                          views::take(33);
+
+        auto count = std::ranges::distance(ascii_view);
+        if (count > 32)
+          return static_cast<Ty>(0);
+
+        std::array<char, 32> buf{};
+        std::ranges::copy(ascii_view, buf.begin());
+
+        Ty value = 0;
+        auto [ptr, ec] = std::from_chars(buf.data(), buf.data() + count, value);
+        return ec == std::errc() ? static_cast<Ty>(value) : static_cast<Ty>(0);
+      }
+
+     public:
+      constexpr api_set_contract() = default;
+      explicit api_set_contract(std::wstring_view name) noexcept : m_name(name) {}
+
+      [[nodiscard]] auto name() const noexcept { return m_name; }
+      [[nodiscard]] auto clean_name() const noexcept { return win::remove_api_set_version(m_name); }
+
+      [[nodiscard]] auto version() const noexcept {
+        constexpr auto separator = '-';
+        constexpr auto npos = std::wstring_view::npos;
+
+        // Contract name should have the following format: "-l<major>-<minor>-<micro>"
+        auto pos_micro = m_name.find_last_of(separator);
+        if (pos_micro == npos)
+          return api_set_version{0, 0, 0};
+
+        auto pos_minor = m_name.substr(0, pos_micro).find_last_of(separator);
+        if (pos_minor == npos)
+          return api_set_version{0, 0, 0};
+
+        auto pos_major = m_name.substr(0, pos_minor).find_last_of(separator);
+        if (pos_major == npos)
+          return api_set_version{0, 0, 0};
+
+        auto micro_str = m_name.substr(pos_micro + 1);
+        auto minor_str = m_name.substr(pos_minor + 1, pos_micro - pos_minor - 1);
+        auto major_str = m_name.substr(pos_major + 1, pos_minor - pos_major - 1);
+
+        if (!major_str.empty() && (major_str.front() == L'l' || major_str.front() == L'L')) {
+          major_str.remove_prefix(1);
+        }
+
+        auto major = convert_version_symbols_to_integral<uint16_t>(major_str);
+        auto minor = convert_version_symbols_to_integral<uint16_t>(minor_str);
+        auto micro = convert_version_symbols_to_integral<uint16_t>(micro_str);
+
+        return api_set_version{major, minor, micro};
+      }
+
+      // Helper functions, will be useful to compare with forwarder_string,
+      // since forwarder_string only stores narrow strings, while
+      // api_set name is always specified in wide strings only.
+      // Both, however, always store ASCII strings.
+
+      [[nodiscard]] auto equals_to(std::string_view narrow_name) const noexcept {
+        return compare_wide_with_narrow(m_name, narrow_name);
+      }
+
+      [[nodiscard]] auto clean_equals_to(std::string_view clean_narrow_name) {
+        return compare_wide_with_narrow(clean_name(), clean_narrow_name);
+      }
+
+     private:
+      [[nodiscard]] bool compare_wide_with_narrow(std::wstring_view wide,
+                                                  std::string_view narrow) const noexcept {
+        if (narrow.size() != wide.size())
+          return false;
+
+        auto comparator = [](char a, wchar_t b) {
+          return a == static_cast<char>(b);
+        };
+
+        return std::ranges::equal(narrow, wide, comparator);
+      }
+
+      std::wstring_view m_name;
+    };
+
+    struct api_set_host_entry {
+      std::wstring_view value;
+      std::wstring_view alias;
+
+      [[nodiscard]] auto alias_present() const noexcept { return !alias.empty(); }
+    };
+
+    class api_set_host_range {
+     public:
+      api_set_host_range(const win::api_set_value_entry* entries, uint32_t count, address_t base)
+          : m_entries(entries), m_count(count), m_base(base) {}
+
+      class iterator {
+       public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = api_set_host_entry;
+        using difference_type = std::ptrdiff_t;
+        using pointer = value_type*;
+        using reference = value_type&;
+
+        iterator() : m_entries(nullptr), m_index(0), m_count(0), m_base(0) {}
+
+        iterator(const win::api_set_value_entry* entries, uint32_t count, address_t base,
+                 uint32_t index = 0)
+            : m_entries(entries), m_index(index), m_count(count), m_base(base) {
+          update_value();
+        }
+
+        reference operator*() noexcept { return m_current; }
+
+        pointer operator->() noexcept { return &m_current; }
+
+        iterator& operator++() {
+          if (m_index < m_count) {
+            ++m_index;
+            update_value();
+          }
+          return *this;
+        }
+
+        iterator operator++(int) {
+          iterator tmp = *this;
+          ++(*this);
+          return tmp;
+        }
+
+        bool operator==(const iterator& other) const {
+          return m_entries == other.m_entries && m_index == other.m_index &&
+                 m_count == other.m_count && m_base == other.m_base;
+        }
+
+        bool operator!=(const iterator& other) const { return !(*this == other); }
+
+       private:
+        void update_value() {
+          if (!m_entries || m_index >= m_count) {
+            m_current = {};
+            return;
+          }
+
+          const auto& entry = m_entries[m_index];
+
+          auto value_string_ptr = m_base.offset<wchar_t*>(entry.value_offset);
+          auto value_string_length = static_cast<uint16_t>(entry.value_length / sizeof(wchar_t));
+          std::wstring_view value{value_string_ptr, value_string_length};
+
+          std::wstring_view alias;
+          if (entry.name_length != 0) {
+            auto alias_string_ptr = m_base.offset<wchar_t*>(entry.name_offset);
+            auto alias_string_length = static_cast<uint16_t>(entry.name_length / sizeof(wchar_t));
+            alias = {alias_string_ptr, alias_string_length};
+          }
+
+          m_current = {value, alias};
+        }
+
+        const win::api_set_value_entry* m_entries;
+        uint32_t m_index;
+        uint32_t m_count;
+        address_t m_base;
+        value_type m_current;
+      };
+
+      iterator begin() const { return iterator(m_entries, m_count, m_base, 0); }
+      iterator end() const { return iterator(m_entries, m_count, m_base, m_count); }
+
+      uint32_t size() const noexcept { return m_count; }
+
+     private:
+      const win::api_set_value_entry* m_entries;
+      uint32_t m_count;
+      address_t m_base;
+    };
+
+    class api_set_entry {
+     public:
+      api_set_entry() : m_value_entries(nullptr), m_value_count(0), m_base(0), m_sealed(false) {}
+
+      api_set_entry(std::wstring_view contract_name, bool sealed,
+                    const win::api_set_value_entry* entries, uint32_t count, address_t base)
+          : m_contract(contract_name),
+            m_sealed(sealed),
+            m_value_entries(entries),
+            m_value_count(count),
+            m_base(base) {}
+
+      // Contract, for example: "api-ms-win-core-com-l1-1-0"
+      [[nodiscard]] auto contract() const noexcept { return m_contract; }
+      [[nodiscard]] auto sealed() const noexcept { return m_sealed; }
+      [[nodiscard]] auto host_count() const noexcept { return m_value_count; }
+      [[nodiscard]] auto hosts() const {
+        return api_set_host_range(m_value_entries, m_value_count, m_base);
+      }
+
+     private:
+      api_set_contract m_contract;
+      bool m_sealed;
+
+      const win::api_set_value_entry* m_value_entries;
+      uint32_t m_value_count;
+      address_t m_base;
+    };
+
+    class api_set_map_enumerator {
+     public:
+      api_set_map_enumerator() {
+        auto peb = win::PEB::address();
+
+        m_api_set_map = reinterpret_cast<const win::api_set_namespace*>(peb->reserved9[0]);
+        if (!m_api_set_map) {
+          m_count = 0;
+          m_first_entry = nullptr;
+          m_base = 0;
+          return;
+        }
+        m_count = m_api_set_map->count;
+        m_base = reinterpret_cast<uintptr_t>(m_api_set_map);
+
+        m_first_entry =
+            m_base.offset<const win::api_set_namespace_entry*>(m_api_set_map->entry_offset);
+      }
+
+      class iterator {
+       public:
+        using iterator_category = std::bidirectional_iterator_tag;
+        using value_type = api_set_entry;
+        using difference_type = std::ptrdiff_t;
+        using pointer = value_type*;
+        using reference = value_type&;
+
+        iterator() : m_enumerator(nullptr), m_index(0) {}
+
+        iterator(const api_set_map_enumerator* enumerator, uint32_t index)
+            : m_enumerator(enumerator), m_index(index) {
+          update_value();
+        }
+
+        reference operator*() noexcept { return m_current; }
+
+        pointer operator->() noexcept { return &m_current; }
+
+        iterator& operator++() noexcept {
+          if (m_index < m_enumerator->m_count) {
+            ++m_index;
+            update_value();
+          }
+          return *this;
+        }
+
+        iterator operator++(int) noexcept {
+          iterator tmp = *this;
+          ++(*this);
+          return tmp;
+        }
+
+        iterator& operator--() noexcept {
+          if (m_index > 0) {
+            --m_index;
+            update_value();
+          }
+          return *this;
+        }
+
+        iterator operator--(int) noexcept {
+          iterator tmp = *this;
+          --(*this);
+          return tmp;
+        }
+
+        bool operator==(const iterator& other) const noexcept {
+          return m_enumerator == other.m_enumerator && m_index == other.m_index;
+        }
+
+        bool operator!=(const iterator& other) const noexcept { return !(*this == other); }
+
+       private:
+        void update_value() {
+          if (!m_enumerator || m_index >= m_enumerator->m_count) {
+            m_current = api_set_entry();
+            return;
+          }
+
+          auto ns_entry = m_enumerator->m_first_entry + m_index;
+
+          constexpr auto api_set_schema_entry_flags_sealed = 1;
+          bool sealed = (ns_entry->flags & api_set_schema_entry_flags_sealed) != 0;
+          auto name_string_ptr = m_enumerator->m_base.offset<wchar_t*>(ns_entry->name_offset);
+          auto name_string_length = static_cast<uint16_t>(ns_entry->name_length / sizeof(wchar_t));
+          std::wstring_view contract_name{name_string_ptr, name_string_length};
+
+          auto value_entry =
+              m_enumerator->m_base.offset<const win::api_set_value_entry*>(ns_entry->value_offset);
+
+          m_current = api_set_entry(contract_name, sealed, value_entry, ns_entry->value_count,
+                                    m_enumerator->m_base);
+        }
+
+        const api_set_map_enumerator* m_enumerator;
+        uint32_t m_index;
+        value_type m_current;
+      };
+
+      iterator begin() const noexcept { return iterator(this, 0); }
+      iterator end() const noexcept { return iterator(this, m_count); }
+
+      [[nodiscard]] uint32_t size() const noexcept { return m_count; }
+
+      [[nodiscard]] iterator find(hash64_t contract_name_hash) const noexcept {
+        for (auto it = begin(); it != end(); ++it) {
+          auto full_name_hash = hash64_t{}(it->contract().name());
+          if (full_name_hash == contract_name_hash)
+            return it;
+
+          auto clean_name_hash = hash64_t{}(it->contract().clean_name());
+          if (clean_name_hash == contract_name_hash)
+            return it;
+        }
+        return end();
+      }
+
+      [[nodiscard]] iterator
+      find_if(std::predicate<iterator::value_type> auto pred) const noexcept {
+        for (auto it = begin(); it != end(); ++it) {
+          if (pred(*it))
+            return it;
+        }
+        return end();
+      }
+
+     private:
+      const win::api_set_namespace* m_api_set_map;
+      const win::api_set_namespace_entry* m_first_entry;
+      uint32_t m_count;
+      address_t m_base;
+    };
+
     class export_enumerator {
      public:
       explicit export_enumerator(address_t base) noexcept
@@ -2304,10 +2745,11 @@ namespace shadow {
 
   }  // namespace detail
 
-  using hash32_t = detail::basic_hash<uint32_t>;
-  using hash64_t = detail::basic_hash<uint64_t>;
+  using detail::hash32_t;
+  using detail::hash64_t;
 
   namespace literals {
+
     consteval hash32_t operator""_h32(const char* str, std::size_t len) noexcept {
       return hash32_t{str, len};
     }
@@ -2315,6 +2757,7 @@ namespace shadow {
     consteval hash64_t operator""_h64(const char* str, std::size_t len) noexcept {
       return hash64_t{str, len};
     }
+
   }  // namespace literals
 
   // Used in `shadowcall` to create a pairing
@@ -2348,6 +2791,10 @@ namespace shadow {
 
   inline auto shared_data() {
     return detail::shared_data{};
+  }
+
+  inline auto api_set_map_enumerator() {
+    return detail::api_set_map_enumerator{};
   }
 
   inline auto cpu() {
