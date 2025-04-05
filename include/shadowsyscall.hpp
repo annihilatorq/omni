@@ -274,6 +274,12 @@ namespace shadow {
       [[nodiscard]] auto data() const noexcept { return m_buffer; }
       [[nodiscard]] auto size() const noexcept { return m_length; }
 
+      [[nodiscard]] bool operator==(const unicode_string& right) const noexcept {
+        return m_buffer == right.m_buffer && m_length == right.m_length;
+      }
+
+      [[nodiscard]] explicit operator bool() const noexcept { return m_buffer != nullptr; }
+
      private:
       [[nodiscard]] bool contains_non_ascii(const std::wstring_view str) const noexcept {
         return std::ranges::any_of(str, [](wchar_t ch) {
