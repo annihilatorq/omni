@@ -1735,25 +1735,26 @@ namespace shadow {
         return memory_checksum<Ty>{section_content}.result();
       }
 
-      static bool compare_dll_names(hash64_t module_hash, std::wstring_view module_name) {
+      [[nodiscard]] auto present() const noexcept { return m_data != nullptr; }
+
+      [[nodiscard]] bool operator==(const dynamic_link_library& other) const noexcept {
+        return m_data == other.m_data;
+      }
+
+      [[nodiscard]] bool operator==(hash64_t module_name_hash) const noexcept {
+        const auto module_name = name().view();
         // Try to compare hash of full module name
         const auto full_name_hash = hash64_t{}(module_name);
 
         if (module_name.size() <= 4)
-          return module_hash == full_name_hash;
+          return module_name_hash == full_name_hash;
 
         // Try to compare hash of trimmed module name (.dll)
         const auto trimmed_name = module_name.substr(0, module_name.size() - 4);
         const auto trimmed_name_hash = hash64_t{}(trimmed_name);
 
         // Verify both hashes
-        return full_name_hash == module_hash || trimmed_name_hash == module_hash;
-      }
-
-      [[nodiscard]] auto present() const noexcept { return m_data != nullptr; }
-
-      [[nodiscard]] bool operator==(const dynamic_link_library& other) const noexcept {
-        return m_data == other.m_data;
+        return full_name_hash == module_name_hash || trimmed_name_hash == module_name_hash;
       }
 
       [[nodiscard]] explicit operator bool() const noexcept { return present(); }
@@ -1919,8 +1920,7 @@ namespace shadow {
 
         // Enumerate every module loaded to process
         for (const auto& module : process_modules) {
-          if (is_module_specified &&
-              !dynamic_link_library::compare_dll_names(module_hash, module.name().view()))
+          if (is_module_specified && module != module_hash)
             continue;
 
           export_enumerator exports{module.base_address()};
@@ -1982,8 +1982,7 @@ namespace shadow {
     inline dynamic_link_library dynamic_link_library::find(hash64_t module_name) const {
       module_enumerator modules{};
       auto it = modules.find_if([=, this](const dynamic_link_library& dll) -> bool {
-        return !dll.name().view().empty() &&
-               dynamic_link_library::compare_dll_names(module_name, dll.name().view());
+        return !dll.name().view().empty() && dll == module_name;
       });
       return it != modules.end() ? *it : dynamic_link_library{};
     }
