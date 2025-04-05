@@ -178,6 +178,16 @@ namespace shadow {
     constexpr static std::uint32_t NUM_DATA_DIRECTORIES = 16;
     constexpr static std::uint32_t img_npos = 0xFFFFFFFF;
 
+    inline auto split_forwarder_string(std::string_view view, char delimiter) noexcept {
+      auto pos = view.find(delimiter);
+      if (pos != std::string_view::npos) {
+        auto first_part = view.substr(0, pos);
+        auto second_part = view.substr(pos + 1);
+        return std::pair{first_part, second_part};
+      }
+      return std::pair{view, std::string_view{}};
+    }
+
     union version_t {
       uint16_t identifier;
       struct {
@@ -194,16 +204,19 @@ namespace shadow {
       };
     };
 
+    struct forwarder_string {
+      std::string_view dll;
+      std::string_view function;
+      [[nodiscard]] bool present() const noexcept { return !(dll.empty() || function.empty()); }
+    };
+
     struct section_string_t {
       char short_name[8];
 
       [[nodiscard]] auto view() const noexcept { return std::string_view{short_name}; }
-
-      explicit operator std::string_view() const noexcept { return view(); }
-
+      [[nodiscard]] explicit operator std::string_view() const noexcept { return view(); }
       [[nodiscard]] auto operator[](size_t n) const noexcept { return view()[n]; }
-
-      auto operator==(const section_string_t& other) const {
+      [[nodiscard]] bool operator==(const section_string_t& other) const {
         return view().compare(other.view()) == 0;
       }
     };
@@ -685,7 +698,7 @@ namespace shadow {
     }
 
     inline auto image_from_base(loader_table_entry* module) {
-      return image_from_base(module->base_address.as<address_t>());
+      return image_from_base(module->base_address);
     }
 
     template <typename T, typename FieldT>
@@ -1836,10 +1849,9 @@ namespace shadow {
     class dll_export {
      public:
       dll_export() = default;
-      dll_export(hash64_t export_name, hash64_t module_hash = 0) noexcept : m_address(0), m_dll() {
-        const auto [address, location] = find_export_address(export_name, module_hash);
-        m_address = address;
-        m_dll = location;
+      dll_export(hash64_t export_name, hash64_t module_hash = 0) noexcept {
+        const auto exp = find_export_address(export_name, module_hash);
+        m_data = exp;
       }
 
       dll_export(const dll_export& instance) = default;
@@ -1848,15 +1860,25 @@ namespace shadow {
       dll_export& operator=(dll_export&& instance) = default;
       ~dll_export() = default;
 
-      [[nodiscard]] address_t address() const noexcept { return m_address; }
-      [[nodiscard]] dynamic_link_library location() const noexcept { return m_dll; }
+      [[nodiscard]] auto address() const noexcept { return m_data.address; }
+      [[nodiscard]] auto location() const noexcept { return m_data.dll; }
+      [[nodiscard]] auto is_forwarder_unresolved() const noexcept { return m_data.is_forwarded; }
+      [[nodiscard]] auto forwarder_string() const noexcept { return m_data.forwarder_string; }
+      [[nodiscard]] auto present() const noexcept { return static_cast<bool>(m_data.address); }
 
-      bool operator==(address_t other) const noexcept { return m_address == other; }
+      [[nodiscard]] bool operator==(address_t other) const noexcept {
+        return m_data.address == other;
+      }
+
+      [[nodiscard]] explicit operator bool() const noexcept { return present(); }
+      [[nodiscard]] explicit operator address_t() const noexcept { return address(); }
 
      private:
       struct export_with_location {
         address_t address{0};
-        detail::dynamic_link_library location{};
+        detail::dynamic_link_library dll{};
+        bool is_forwarded{false};
+        win::forwarder_string forwarder_string{};
       };
 
       export_with_location find_export_address(hash64_t export_name,
@@ -1885,8 +1907,9 @@ namespace shadow {
             const auto& [_, address] = *export_it;
 
             // Learn more here: https://devblogs.microsoft.com/oldnewthing/20060719-24/?p=30473
-            if (exports.is_export_forwarded(address))
+            if (exports.is_export_forwarded(address)) {
               return handle_forwarded_export(address);
+            }
 
             return {address, module};
           }
@@ -1899,29 +1922,33 @@ namespace shadow {
         // In a forwarded export, the address is a string containing
         // information about the actual export and its location
         // They are always presented as "module_name.export_name"
-        auto forwarded_export_name = address.ptr<const char>();
+        auto forwarder_string = address.ptr<const char>();
 
         // Split forwarded export to module name and real export name
-        auto [module_name, real_export_name] =
-            split_forwarded_export_name(forwarded_export_name, '.');
+        auto [module_name, real_export_name] = win::split_forwarder_string(forwarder_string, '.');
 
         // Perform call with the name of the real export, with a pre-known module
-        return find_export_address(hash64_t{}(real_export_name), hash64_t{}(module_name));
-      }
+        auto real_export =
+            find_export_address(hash64_t{}(real_export_name), hash64_t{}(module_name));
 
-      std::pair<std::string_view, std::string_view>
-      split_forwarded_export_name(std::string_view view, char delimiter) const noexcept {
-        auto pos = view.find(delimiter);
-        if (pos != std::string_view::npos) {
-          auto first_part = view.substr(0, pos);
-          auto second_part = view.substr(pos + 1);
-          return {first_part, second_part};
+        if (real_export.dll.raw() == nullptr) {
+          win::forwarder_string fwd_string{
+              .dll = module_name,
+              .function = real_export_name,
+          };
+
+          return export_with_location{
+              .address = nullptr,
+              .dll = {},
+              .is_forwarded = true,
+              .forwarder_string = fwd_string,
+          };
         }
-        return {view, {}};
+
+        return real_export;
       }
 
-      address_t m_address{0};
-      detail::dynamic_link_library m_dll{};
+      export_with_location m_data;
     };
 
     inline dynamic_link_library dynamic_link_library::find(hash64_t module_name) const {
