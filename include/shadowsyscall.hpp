@@ -1704,7 +1704,7 @@ namespace shadow {
       std::wstring_view value;
       std::wstring_view alias;
 
-      [[nodiscard]] auto alias_present() const noexcept { return !alias.empty(); }
+      [[nodiscard]] auto alias_presented() const noexcept { return !alias.empty(); }
     };
 
     class api_set_host_range {
