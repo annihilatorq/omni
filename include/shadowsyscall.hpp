@@ -90,7 +90,7 @@ namespace shadow {
       return this->offset(offset).as<PointerTy>();
     }
 
-    [[nodiscard]] constexpr underlying_t raw() const noexcept {
+    [[nodiscard]] constexpr underlying_t get() const noexcept {
       return m_address;
     }
 
@@ -1091,14 +1091,14 @@ namespace shadow {
     template <typename Ty>
     struct type_hash {
       auto operator()(const Ty& instance) const noexcept {
-        return std::hash<typename Ty::underlying_t>()(instance.raw());
+        return std::hash<typename Ty::underlying_t>()(instance.get());
       }
     };
 
     template <typename Ty>
     struct type_format : std::formatter<typename Ty::underlying_t> {
       auto format(const Ty& value, std::format_context& ctx) const {
-        return std::formatter<typename Ty::underlying_t>::format(value.raw(), ctx);
+        return std::formatter<typename Ty::underlying_t>::format(value.get(), ctx);
       }
     };
 
@@ -1223,9 +1223,10 @@ namespace shadow {
       }
 
       // \return Hash-value copy as an integral
-      [[nodiscard]] constexpr ValTy raw() const {
+      [[nodiscard]] constexpr ValTy get() const {
         return m_value;
       }
+
       [[nodiscard]] constexpr explicit operator ValTy() const {
         return m_value;
       }
@@ -2077,8 +2078,8 @@ namespace shadow {
       }
 
       [[nodiscard]] auto address(std::size_t index) const noexcept {
-        const auto rva_table_ptr = m_export_table->rva_table(m_module_base.raw());
-        const auto ordinal_table_ptr = m_export_table->ordinal_table(m_module_base.raw());
+        const auto rva_table_ptr = m_export_table->rva_table(m_module_base.get());
+        const auto ordinal_table_ptr = m_export_table->ordinal_table(m_module_base.get());
 
         const auto ordinal = ordinal_table_ptr[index];
         const auto rva_function = rva_table_ptr[ordinal];
@@ -2087,7 +2088,7 @@ namespace shadow {
       }
 
       [[nodiscard]] auto is_export_forwarded(address_t export_address) const noexcept {
-        const auto image = win::image_from_base(m_module_base.raw());
+        const auto image = win::image_from_base(m_module_base.get());
         const auto export_data_dir =
             image->get_optional_header()->data_directories.export_directory;
 
@@ -2223,7 +2224,7 @@ namespace shadow {
 
      private:
       win::export_directory_t* get_export_directory(address_t base_address) const noexcept {
-        const auto image = win::image_from_base(base_address.raw());
+        const auto image = win::image_from_base(base_address.get());
         const auto export_data_dir =
             image->get_optional_header()->data_directories.export_directory;
         return m_module_base.offset<win::export_directory_t*>(export_data_dir.rva);
@@ -2758,7 +2759,7 @@ namespace shadow {
      public:
       constexpr shared_data() : m_data(memory_location.ptr<win::kernel_user_shared_data>()) {}
 
-      [[nodiscard]] auto* raw() const noexcept {
+      [[nodiscard]] auto* get() const noexcept {
         return m_data;
       }
 
@@ -3269,10 +3270,10 @@ namespace shadow {
    private:
     detail::dll_export get_export(hash64_t export_name, hash64_t module_name) {
 #ifndef SHADOWSYSCALLS_DISABLE_CACHING
-      detail::dll_export exp = detail::address_cache[export_name.raw()];
+      detail::dll_export exp = detail::address_cache[export_name.get()];
       if (exp == 0) {
         exp = shadow::dll_export(export_name, module_name);
-        detail::address_cache.try_emplace(export_name.raw(), exp);
+        detail::address_cache.try_emplace(export_name.get(), exp);
       }
 
       return exp;
