@@ -2903,21 +2903,16 @@ namespace shadow {
     std::array<std::uint8_t, shell_size> m_shellcode;
   };
 
-  // Names for generic error codes
-  enum errc : std::uint32_t {
-    none = 0,         // No error occured
-    ssn_not_found,    // System Service Number can't be found
-    export_not_found  // Such export doesn't exist
-  };
+  namespace error {
 
-  template <typename Ty, typename ErrTy>
-    requires(std::is_enum_v<ErrTy>)
-  struct call_result_t {
-    Ty value;
-    std::optional<ErrTy> error;
+    // Names for generic error codes
+    enum errc : std::uint32_t {
+      none = 0,         // No error occured
+      ssn_not_found,    // System Service Number can't be found
+      export_not_found  // Such export doesn't exist
+    };
 
-    operator Ty() { return value; }
-  };
+  }  // namespace error
 
   template <typename Ty>
   class syscaller {
@@ -2942,26 +2937,26 @@ namespace shadow {
 
     template <typename... Args>
       requires(shadow::is_x64)
-    call_result_t<Ty, shadow::errc> operator()(Args&&... args) noexcept {
+    auto operator()(Args&&... args) noexcept {
       auto parse_result = resolve_service_number();
       if (!parse_result || m_last_error) {
         // Return -1 if type is NTSTATUS (call failed),
         // otherwise return default-constructible (0)
-        return is_type_ntstatus ? call_result_t{Ty{-1}, m_last_error}
-                                : call_result_t{Ty{}, m_last_error};
+        return is_type_ntstatus ? Ty{-1} : Ty{};
       } else {
         m_service_number = *parse_result;
       }
       setup_shellcode();
-      return {m_shellcode.execute<Ty>(shadow::detail::convert_nulls_to_nullptrs(args)...),
-              m_last_error};
+      return m_shellcode.execute<Ty>(shadow::detail::convert_nulls_to_nullptrs(args)...);
     }
 
-    void set_custom_ssn_parser(ssn_parser_t parser) { m_ssn_parser.swap(parser); }
+    void set_ssn_parser(ssn_parser_t parser) { m_ssn_parser.swap(parser); }
 
-    void set_last_error(errc error) noexcept { m_last_error.emplace(error); }
+    void set_last_error(std::uint32_t error) noexcept { m_last_error.emplace(error); }
 
-    std::optional<errc> get_last_error() const noexcept { return m_last_error; }
+    std::optional<std::uint32_t> last_error() const noexcept { return m_last_error; }
+
+    explicit operator bool() const noexcept { return !m_last_error.has_value(); }
 
    private:
     void setup_shellcode() noexcept {
@@ -2977,7 +2972,7 @@ namespace shadow {
 #endif
       auto mod_export = dll_export(m_name_hash);
       if (mod_export == 0) {
-        set_last_error(errc::export_not_found);
+        set_last_error(error::export_not_found);
         return std::nullopt;
       }
 
@@ -3000,19 +2995,19 @@ namespace shadow {
           return *reinterpret_cast<std::uint32_t*>(&address[i + 4]);
         }
       }
-      set_last_error(errc::ssn_not_found);
+      set_last_error(error::ssn_not_found);
       return 0;
     }
 
    private:
     hash64_t::underlying_t m_name_hash;
     std::uint32_t m_service_number;
-    std::optional<errc> m_last_error;
+    std::optional<std::uint32_t> m_last_error;
     ssn_parser_t m_ssn_parser;
 
     shellcode<13> m_shellcode = {
         0x49, 0x89, 0xCA,                          // mov r10, rcx
-        0x48, 0xC7, 0xC0, 0x3F, 0x10, 0x00, 0x00,  // mov rax, ssn
+        0x48, 0xC7, 0xC0, 0x3F, 0x10, 0x00, 0x00,  // mov rax, {ssn}
         0x0F, 0x05,                                // syscall
         0xC3                                       // ret
     };
@@ -3083,11 +3078,9 @@ struct std::hash<shadow::hash64_t> {
 
 template <typename Ty = long, class... Args>
   requires(shadow::is_x64)
-inline shadow::call_result_t<Ty, shadow::errc> shadowsyscall(shadow::hash64_t syscall_name,
-                                                             Args&&... args) {
+inline Ty shadowsyscall(shadow::hash64_t syscall_name, Args&&... args) {
   shadow::syscaller<std::remove_cv_t<Ty>> sc{syscall_name};
-  auto result = sc(shadow::detail::convert_nulls_to_nullptrs(args)...);
-  return shadow::call_result_t{result, sc.get_last_error()};
+  return sc(std::forward<Args>(args)...);
 }
 
 template <typename Ty = std::monostate, class... Args>
