@@ -90,7 +90,9 @@ namespace shadow {
       return this->offset(offset).as<PointerTy>();
     }
 
-    [[nodiscard]] constexpr underlying_t raw() const noexcept { return m_address; }
+    [[nodiscard]] constexpr underlying_t raw() const noexcept {
+      return m_address;
+    }
 
     template <typename Ty = address_t>
     [[nodiscard]] constexpr Ty offset(std::ptrdiff_t offset = 0) const noexcept {
@@ -132,8 +134,12 @@ namespace shadow {
       return target_function(std::forward<Args>(args)...);
     }
 
-    constexpr explicit operator std::uintptr_t() const noexcept { return m_address; }
-    constexpr explicit operator bool() const noexcept { return static_cast<bool>(m_address); }
+    constexpr explicit operator std::uintptr_t() const noexcept {
+      return m_address;
+    }
+    constexpr explicit operator bool() const noexcept {
+      return static_cast<bool>(m_address);
+    }
     constexpr auto operator<=>(const address_t&) const = default;
 
     constexpr address_t operator+=(const address_t& rhs) noexcept {
@@ -215,15 +221,23 @@ namespace shadow {
     struct forwarder_string {
       std::string_view dll;
       std::string_view function;
-      [[nodiscard]] bool present() const noexcept { return !(dll.empty() || function.empty()); }
+      [[nodiscard]] bool present() const noexcept {
+        return !(dll.empty() || function.empty());
+      }
     };
 
     struct section_string_t {
       char short_name[8];
 
-      [[nodiscard]] auto view() const noexcept { return std::string_view{short_name}; }
-      [[nodiscard]] explicit operator std::string_view() const noexcept { return view(); }
-      [[nodiscard]] auto operator[](size_t n) const noexcept { return view()[n]; }
+      [[nodiscard]] auto view() const noexcept {
+        return std::string_view{short_name};
+      }
+      [[nodiscard]] explicit operator std::string_view() const noexcept {
+        return view();
+      }
+      [[nodiscard]] auto operator[](size_t n) const noexcept {
+        return view()[n];
+      }
       [[nodiscard]] bool operator==(const section_string_t& other) const {
         return view().compare(other.view()) == 0;
       }
@@ -281,9 +295,15 @@ namespace shadow {
         }
       }
 
-      [[nodiscard]] auto data() const noexcept { return m_buffer; }
-      [[nodiscard]] auto size() const noexcept { return m_length; }
-      [[nodiscard]] auto empty() const noexcept { return m_buffer == nullptr || m_length == 0; }
+      [[nodiscard]] auto data() const noexcept {
+        return m_buffer;
+      }
+      [[nodiscard]] auto size() const noexcept {
+        return m_length;
+      }
+      [[nodiscard]] auto empty() const noexcept {
+        return m_buffer == nullptr || m_length == 0;
+      }
 
       [[nodiscard]] bool operator==(const unicode_string& right) const noexcept {
         return m_buffer == right.m_buffer && m_length == right.m_length;
@@ -304,7 +324,9 @@ namespace shadow {
         return std::ranges::equal(wide_string_transformed_to_ascii, right);
       }
 
-      [[nodiscard]] explicit operator bool() const noexcept { return m_buffer != nullptr; }
+      [[nodiscard]] explicit operator bool() const noexcept {
+        return m_buffer != nullptr;
+      }
 
       friend std::ostream& operator<<(std::ostream& os, const unicode_string& unicode_str) {
         return os << unicode_str.string();
@@ -350,13 +372,17 @@ namespace shadow {
     struct data_directory_t {
       std::uint32_t rva;
       std::uint32_t size;
-      [[nodiscard]] bool present() const noexcept { return size > 0; }
+      [[nodiscard]] bool present() const noexcept {
+        return size > 0;
+      }
     };
 
     struct raw_data_directory_t {
       uint32_t ptr_raw_data;
       uint32_t size;
-      [[nodiscard]] bool present() const noexcept { return size > 0; }
+      [[nodiscard]] bool present() const noexcept {
+        return size > 0;
+      }
     };
 
     struct data_directories_x64_t {
@@ -719,8 +745,12 @@ namespace shadow {
       struct proxy {
         T* base;
         uint16_t count;
-        T* begin() const { return base; }
-        T* end() const { return base + count; }
+        T* begin() const {
+          return base;
+        }
+        T* end() const {
+          return base + count;
+        }
       };
       inline proxy<section_header_t> sections() {
         return {get_sections(), file_header.num_sections};
@@ -751,9 +781,15 @@ namespace shadow {
       uint16_t e_res2[10];
       uint32_t e_lfanew;
 
-      inline file_header_t* get_file_header() { return &get_nt_headers()->file_header; }
-      inline const file_header_t* get_file_header() const { return &get_nt_headers()->file_header; }
-      inline nt_headers_t* get_nt_headers() { return (nt_headers_t*)((uint8_t*)this + e_lfanew); }
+      inline file_header_t* get_file_header() {
+        return &get_nt_headers()->file_header;
+      }
+      inline const file_header_t* get_file_header() const {
+        return &get_nt_headers()->file_header;
+      }
+      inline nt_headers_t* get_nt_headers() {
+        return (nt_headers_t*)((uint8_t*)this + e_lfanew);
+      }
       inline const nt_headers_t* get_nt_headers() const {
         return const_cast<dos_header_t*>(this)->get_nt_headers();
       }
@@ -763,13 +799,27 @@ namespace shadow {
       dos_header_t dos_header;
 
       // Basic getters.
-      inline dos_header_t* get_dos_headers() { return &dos_header; }
-      inline const dos_header_t* get_dos_headers() const { return &dos_header; }
-      inline file_header_t* get_file_header() { return dos_header.get_file_header(); }
-      inline const file_header_t* get_file_header() const { return dos_header.get_file_header(); }
-      inline nt_headers_t* get_nt_headers() { return dos_header.get_nt_headers(); }
-      inline const nt_headers_t* get_nt_headers() const { return dos_header.get_nt_headers(); }
-      inline optional_header_t* get_optional_header() { return &get_nt_headers()->optional_header; }
+      inline dos_header_t* get_dos_headers() {
+        return &dos_header;
+      }
+      inline const dos_header_t* get_dos_headers() const {
+        return &dos_header;
+      }
+      inline file_header_t* get_file_header() {
+        return dos_header.get_file_header();
+      }
+      inline const file_header_t* get_file_header() const {
+        return dos_header.get_file_header();
+      }
+      inline nt_headers_t* get_nt_headers() {
+        return dos_header.get_nt_headers();
+      }
+      inline const nt_headers_t* get_nt_headers() const {
+        return dos_header.get_nt_headers();
+      }
+      inline optional_header_t* get_optional_header() {
+        return &get_nt_headers()->optional_header;
+      }
       inline const optional_header_t* get_optional_header() const {
         return &get_nt_headers()->optional_header;
       }
@@ -1159,8 +1209,12 @@ namespace shadow {
       }
 
       // \return Hash-value copy as an integral
-      [[nodiscard]] constexpr ValTy raw() const { return m_value; }
-      [[nodiscard]] constexpr explicit operator ValTy() const { return m_value; }
+      [[nodiscard]] constexpr ValTy raw() const {
+        return m_value;
+      }
+      [[nodiscard]] constexpr explicit operator ValTy() const {
+        return m_value;
+      }
 
       constexpr auto operator<=>(const basic_hash&) const = default;
 
@@ -1197,7 +1251,9 @@ namespace shadow {
       template <std::integral Ty>
       explicit memory_converter(Ty bytes) noexcept : m_bytes(bytes) {}
 
-      [[nodiscard]] auto as_bytes() const noexcept { return m_bytes; }
+      [[nodiscard]] auto as_bytes() const noexcept {
+        return m_bytes;
+      }
 
       [[nodiscard]] auto as_kilobytes() const noexcept {
         return static_cast<std::double_t>(m_bytes) / conversion_value;
@@ -1212,7 +1268,9 @@ namespace shadow {
       }
 
       // Use implicit conversion
-      operator std::size_t() const noexcept { return m_bytes; }
+      operator std::size_t() const noexcept {
+        return m_bytes;
+      }
 
      private:
       std::size_t m_bytes;
@@ -1222,10 +1280,16 @@ namespace shadow {
       class caches_info;
 
      public:
-      hardware_processor() noexcept { parse_cpu_fields(); }
+      hardware_processor() noexcept {
+        parse_cpu_fields();
+      }
 
-      [[nodiscard]] bool is_intel() const noexcept { return m_is_intel; }
-      [[nodiscard]] bool is_amd() const noexcept { return m_is_amd; }
+      [[nodiscard]] bool is_intel() const noexcept {
+        return m_is_intel;
+      }
+      [[nodiscard]] bool is_amd() const noexcept {
+        return m_is_amd;
+      }
 
       // \return caches returns CPU caches information
       // (only works for Intel so far)
@@ -1240,10 +1304,14 @@ namespace shadow {
       }
 
       // \return returns processor vendor name
-      [[nodiscard]] std::string vendor() const noexcept { return m_vendor; }
+      [[nodiscard]] std::string vendor() const noexcept {
+        return m_vendor;
+      }
 
       // \return returns cpu full name
-      [[nodiscard]] std::string brand() const noexcept { return m_brand; }
+      [[nodiscard]] std::string brand() const noexcept {
+        return m_brand;
+      }
 
 #define SUPPORTS(instruction_set_name, condition)                       \
   [[nodiscard]] bool supports_##instruction_set_name() const noexcept { \
@@ -1363,13 +1431,21 @@ namespace shadow {
 
       class caches_info {
        public:
-        caches_info() noexcept { parse_cache_info(); }
+        caches_info() noexcept {
+          parse_cache_info();
+        }
 
-        [[nodiscard]] auto l1_size() const noexcept { return memory_converter{m_cache_sizes[0]}; }
+        [[nodiscard]] auto l1_size() const noexcept {
+          return memory_converter{m_cache_sizes[0]};
+        }
 
-        [[nodiscard]] auto l2_size() const noexcept { return memory_converter{m_cache_sizes[1]}; }
+        [[nodiscard]] auto l2_size() const noexcept {
+          return memory_converter{m_cache_sizes[1]};
+        }
 
-        [[nodiscard]] auto l3_size() const noexcept { return memory_converter{m_cache_sizes[2]}; }
+        [[nodiscard]] auto l3_size() const noexcept {
+          return memory_converter{m_cache_sizes[2]};
+        }
 
         [[nodiscard]] auto total_size() const noexcept {
           return memory_converter{l1_size() + l2_size() + l3_size()};
@@ -1541,7 +1617,9 @@ namespace shadow {
         m_result += append_tail(data, pos) * (std::numeric_limits<Ty>::max)();
       }
 
-      [[nodiscard]] Ty result() const noexcept { return m_result; }
+      [[nodiscard]] Ty result() const noexcept {
+        return m_result;
+      }
 
      private:
       void process_block(const std::span<const char> data, std::size_t pos,
@@ -1605,8 +1683,12 @@ namespace shadow {
       constexpr api_set_contract() = default;
       explicit api_set_contract(std::wstring_view name) noexcept : m_name(name) {}
 
-      [[nodiscard]] auto name() const noexcept { return m_name; }
-      [[nodiscard]] auto clean_name() const noexcept { return win::remove_api_set_version(m_name); }
+      [[nodiscard]] auto name() const noexcept {
+        return m_name;
+      }
+      [[nodiscard]] auto clean_name() const noexcept {
+        return win::remove_api_set_version(m_name);
+      }
 
       [[nodiscard]] auto version() const noexcept {
         constexpr auto separator = '-';
@@ -1673,8 +1755,12 @@ namespace shadow {
       std::wstring_view value;
       std::wstring_view alias;
 
-      [[nodiscard]] auto host_present() const noexcept { return !value.empty(); }
-      [[nodiscard]] auto alias_present() const noexcept { return !alias.empty(); }
+      [[nodiscard]] auto host_present() const noexcept {
+        return !value.empty();
+      }
+      [[nodiscard]] auto alias_present() const noexcept {
+        return !alias.empty();
+      }
     };
 
     class api_set_host_range {
@@ -1698,9 +1784,13 @@ namespace shadow {
           update_value();
         }
 
-        reference operator*() noexcept { return m_current; }
+        reference operator*() noexcept {
+          return m_current;
+        }
 
-        pointer operator->() noexcept { return &m_current; }
+        pointer operator->() noexcept {
+          return &m_current;
+        }
 
         iterator& operator++() {
           if (m_index < m_count) {
@@ -1721,7 +1811,9 @@ namespace shadow {
                  m_count == other.m_count && m_base == other.m_base;
         }
 
-        bool operator!=(const iterator& other) const { return !(*this == other); }
+        bool operator!=(const iterator& other) const {
+          return !(*this == other);
+        }
 
        private:
         void update_value() {
@@ -1753,10 +1845,16 @@ namespace shadow {
         value_type m_current;
       };
 
-      iterator begin() const { return iterator(m_entries, m_count, m_base, 0); }
-      iterator end() const { return iterator(m_entries, m_count, m_base, m_count); }
+      iterator begin() const {
+        return iterator(m_entries, m_count, m_base, 0);
+      }
+      iterator end() const {
+        return iterator(m_entries, m_count, m_base, m_count);
+      }
 
-      uint32_t size() const noexcept { return m_count; }
+      uint32_t size() const noexcept {
+        return m_count;
+      }
 
      private:
       const win::api_set_value_entry* m_entries;
@@ -1777,9 +1875,15 @@ namespace shadow {
             m_base(base) {}
 
       // Contract, for example: "api-ms-win-core-com-l1-1-0"
-      [[nodiscard]] auto contract() const noexcept { return m_contract; }
-      [[nodiscard]] auto sealed() const noexcept { return m_sealed; }
-      [[nodiscard]] auto host_count() const noexcept { return m_value_count; }
+      [[nodiscard]] auto contract() const noexcept {
+        return m_contract;
+      }
+      [[nodiscard]] auto sealed() const noexcept {
+        return m_sealed;
+      }
+      [[nodiscard]] auto host_count() const noexcept {
+        return m_value_count;
+      }
       [[nodiscard]] auto hosts() const {
         return api_set_host_range(m_value_entries, m_value_count, m_base);
       }
@@ -1827,9 +1931,13 @@ namespace shadow {
           update_value();
         }
 
-        reference operator*() noexcept { return m_current; }
+        reference operator*() noexcept {
+          return m_current;
+        }
 
-        pointer operator->() noexcept { return &m_current; }
+        pointer operator->() noexcept {
+          return &m_current;
+        }
 
         iterator& operator++() noexcept {
           if (m_index < m_enumerator->m_count) {
@@ -1863,7 +1971,9 @@ namespace shadow {
           return m_enumerator == other.m_enumerator && m_index == other.m_index;
         }
 
-        bool operator!=(const iterator& other) const noexcept { return !(*this == other); }
+        bool operator!=(const iterator& other) const noexcept {
+          return !(*this == other);
+        }
 
        private:
         void update_value() {
@@ -1892,10 +2002,16 @@ namespace shadow {
         value_type m_current;
       };
 
-      iterator begin() const noexcept { return iterator(this, 0); }
-      iterator end() const noexcept { return iterator(this, m_count); }
+      iterator begin() const noexcept {
+        return iterator(this, 0);
+      }
+      iterator end() const noexcept {
+        return iterator(this, m_count);
+      }
 
-      [[nodiscard]] uint32_t size() const noexcept { return m_count; }
+      [[nodiscard]] uint32_t size() const noexcept {
+        return m_count;
+      }
 
       [[nodiscard]] iterator find(hash64_t contract_name_hash) const noexcept {
         for (auto it = begin(); it != end(); ++it) {
@@ -1931,9 +2047,13 @@ namespace shadow {
       explicit export_enumerator(address_t base) noexcept
           : m_module_base(base), m_export_table(get_export_directory(base)) {}
 
-      [[nodiscard]] std::size_t size() const noexcept { return m_export_table->num_names; }
+      [[nodiscard]] std::size_t size() const noexcept {
+        return m_export_table->num_names;
+      }
 
-      [[nodiscard]] const win::export_directory_t* table() const noexcept { return m_export_table; }
+      [[nodiscard]] const win::export_directory_t* table() const noexcept {
+        return m_export_table;
+      }
 
       [[nodiscard]] auto name(std::size_t index) const noexcept {
         const auto rva_names_ptr = m_module_base.offset(m_export_table->rva_names);
@@ -1982,9 +2102,13 @@ namespace shadow {
           update_value();
         }
 
-        reference operator*() const noexcept { return m_value; }
+        reference operator*() const noexcept {
+          return m_value;
+        }
 
-        pointer operator->() const noexcept { return &m_value; }
+        pointer operator->() const noexcept {
+          return &m_value;
+        }
 
         iterator& operator=(const iterator& other) noexcept {
           if (this != &other) {
@@ -2032,7 +2156,9 @@ namespace shadow {
           return m_index == other.m_index && m_exports == other.m_exports;
         }
 
-        bool operator!=(const iterator& other) const noexcept { return !(*this == other); }
+        bool operator!=(const iterator& other) const noexcept {
+          return !(*this == other);
+        }
 
        private:
         void update_value() noexcept {
@@ -2040,7 +2166,9 @@ namespace shadow {
             m_value = value_type{m_exports->name(m_index), m_exports->address(m_index)};
         }
 
-        void reset_value() noexcept { m_value = value_type{"", 0}; }
+        void reset_value() noexcept {
+          m_value = value_type{"", 0};
+        }
 
         const export_enumerator* m_exports;
         std::size_t m_index;
@@ -2050,8 +2178,12 @@ namespace shadow {
       // Make sure the iterator is compatible with std::ranges
       static_assert(std::bidirectional_iterator<iterator>);
 
-      iterator begin() const noexcept { return iterator(this, 0); }
-      iterator end() const noexcept { return iterator(this, size()); }
+      iterator begin() const noexcept {
+        return iterator(this, 0);
+      }
+      iterator end() const noexcept {
+        return iterator(this, size());
+      }
 
       // \brief Finds an export in the specified module.
       // \param export_name The name of the export to find.
@@ -2101,11 +2233,15 @@ namespace shadow {
 
       // \return loader_table_entry* - Raw pointer to Win32
       // loader data about the current module
-      [[nodiscard]] win::loader_table_entry* loader_table_entry() const noexcept { return m_data; }
+      [[nodiscard]] win::loader_table_entry* loader_table_entry() const noexcept {
+        return m_data;
+      }
 
       // \return image_t - Displaying an image in process
       // memory using the image_t structure from "linuxpe"
-      [[nodiscard]] auto image() const noexcept { return win::image_from_base(m_data); }
+      [[nodiscard]] auto image() const noexcept {
+        return win::image_from_base(m_data);
+      }
 
       // \return uint16_t - How many references the current
       // DLL has at the moment
@@ -2114,14 +2250,20 @@ namespace shadow {
       }
 
       // \return address_t - Base address of current DLL
-      [[nodiscard]] auto base_address() const noexcept { return m_data->base_address; }
+      [[nodiscard]] auto base_address() const noexcept {
+        return m_data->base_address;
+      }
 
       // \return void* - Pointer on base address of current
       // DLL, same as GetModuleHandle() in Win32 API
-      [[nodiscard]] auto native_handle() const noexcept { return base_address().ptr(); }
+      [[nodiscard]] auto native_handle() const noexcept {
+        return base_address().ptr();
+      }
 
       // \return Address of entrypoint
-      [[nodiscard]] auto entry_point() const noexcept { return m_data->entry_point; }
+      [[nodiscard]] auto entry_point() const noexcept {
+        return m_data->entry_point;
+      }
 
       // \return Name of current DLL as std::wstring_view
       [[nodiscard]] auto name() const noexcept {
@@ -2152,7 +2294,9 @@ namespace shadow {
         return memory_checksum<Ty>{section_content}.result();
       }
 
-      [[nodiscard]] auto present() const noexcept { return m_data != nullptr; }
+      [[nodiscard]] auto present() const noexcept {
+        return m_data != nullptr;
+      }
 
       [[nodiscard]] bool operator==(const dynamic_link_library& other) const noexcept {
         return m_data == other.m_data;
@@ -2174,7 +2318,9 @@ namespace shadow {
         return full_name_hash == module_name_hash || trimmed_name_hash == module_name_hash;
       }
 
-      [[nodiscard]] explicit operator bool() const noexcept { return present(); }
+      [[nodiscard]] explicit operator bool() const noexcept {
+        return present();
+      }
 
       friend std::ostream& operator<<(std::ostream& os, const dynamic_link_library& dll) {
         return os << dll.name();
@@ -2212,9 +2358,13 @@ namespace shadow {
         iterator(const iterator&) = default;
         iterator(iterator&&) = default;
         iterator& operator=(iterator&&) = default;
-        iterator(win::list_entry* entry) : m_entry(entry) { on_update(); }
+        iterator(win::list_entry* entry) : m_entry(entry) {
+          on_update();
+        }
 
-        pointer operator->() const noexcept { return &m_value; }
+        pointer operator->() const noexcept {
+          return &m_value;
+        }
 
         iterator& operator=(const iterator& other) noexcept {
           if (this != &other) {
@@ -2248,11 +2398,17 @@ namespace shadow {
           return temp;
         }
 
-        bool operator==(const iterator& other) const noexcept { return m_entry == other.m_entry; }
+        bool operator==(const iterator& other) const noexcept {
+          return m_entry == other.m_entry;
+        }
 
-        bool operator!=(const iterator& other) const noexcept { return !(*this == other); }
+        bool operator!=(const iterator& other) const noexcept {
+          return !(*this == other);
+        }
 
-        reference operator*() const noexcept { return m_value; }
+        reference operator*() const noexcept {
+          return m_value;
+        }
 
        private:
         void on_update() const noexcept {
@@ -2268,8 +2424,12 @@ namespace shadow {
       // Make sure the iterator is compatible with std::ranges
       static_assert(std::bidirectional_iterator<iterator>);
 
-      iterator begin() const noexcept { return iterator(m_begin); }
-      iterator end() const noexcept { return iterator(m_end); }
+      iterator begin() const noexcept {
+        return iterator(m_begin);
+      }
+      iterator end() const noexcept {
+        return iterator(m_end);
+      }
 
       // \brief Find an export with user-defined predicate
       // \param predicate User-defined predicate
@@ -2299,18 +2459,32 @@ namespace shadow {
       dll_export& operator=(dll_export&& instance) = default;
       ~dll_export() = default;
 
-      [[nodiscard]] auto address() const noexcept { return m_data.address; }
-      [[nodiscard]] auto location() const noexcept { return m_data.dll; }
-      [[nodiscard]] auto is_forwarder_unresolved() const noexcept { return m_data.is_forwarded; }
-      [[nodiscard]] auto forwarder_string() const noexcept { return m_data.forwarder_string; }
-      [[nodiscard]] auto present() const noexcept { return static_cast<bool>(m_data.address); }
+      [[nodiscard]] auto address() const noexcept {
+        return m_data.address;
+      }
+      [[nodiscard]] auto location() const noexcept {
+        return m_data.dll;
+      }
+      [[nodiscard]] auto is_forwarder_unresolved() const noexcept {
+        return m_data.is_forwarded;
+      }
+      [[nodiscard]] auto forwarder_string() const noexcept {
+        return m_data.forwarder_string;
+      }
+      [[nodiscard]] auto present() const noexcept {
+        return static_cast<bool>(m_data.address);
+      }
 
       [[nodiscard]] bool operator==(address_t other) const noexcept {
         return m_data.address == other;
       }
 
-      [[nodiscard]] explicit operator bool() const noexcept { return present(); }
-      [[nodiscard]] explicit operator address_t() const noexcept { return address(); }
+      [[nodiscard]] explicit operator bool() const noexcept {
+        return present();
+      }
+      [[nodiscard]] explicit operator address_t() const noexcept {
+        return address();
+      }
 
       friend std::ostream& operator<<(std::ostream& os, const dll_export& exp) {
         os << exp.address().ptr();
@@ -2418,14 +2592,30 @@ namespace shadow {
         return m_major_version == 10 && m_build_number < 22000;
       }
 
-      [[nodiscard]] auto is_windows_8_1() const { return verify_version_mask(6, 3); }
-      [[nodiscard]] auto is_windows_8() const { return verify_version_mask(6, 2); }
-      [[nodiscard]] auto is_windows_7() const { return verify_version_mask(6, 1); }
-      [[nodiscard]] auto is_windows_xp() const { return verify_version_mask(6, 0); }
-      [[nodiscard]] auto is_windows_vista() const { return verify_version_mask(5, 1); }
-      [[nodiscard]] auto major_version() const { return m_major_version; }
-      [[nodiscard]] auto minor_version() const { return m_minor_version; }
-      [[nodiscard]] auto build_number() const { return m_build_number; }
+      [[nodiscard]] auto is_windows_8_1() const {
+        return verify_version_mask(6, 3);
+      }
+      [[nodiscard]] auto is_windows_8() const {
+        return verify_version_mask(6, 2);
+      }
+      [[nodiscard]] auto is_windows_7() const {
+        return verify_version_mask(6, 1);
+      }
+      [[nodiscard]] auto is_windows_xp() const {
+        return verify_version_mask(6, 0);
+      }
+      [[nodiscard]] auto is_windows_vista() const {
+        return verify_version_mask(5, 1);
+      }
+      [[nodiscard]] auto major_version() const {
+        return m_major_version;
+      }
+      [[nodiscard]] auto minor_version() const {
+        return m_minor_version;
+      }
+      [[nodiscard]] auto build_number() const {
+        return m_build_number;
+      }
 
       [[nodiscard]] auto formatted() const {
         return std::format("Windows {}.{} (Build {})", m_major_version, m_minor_version,
@@ -2465,9 +2655,13 @@ namespace shadow {
       }
 
       // \return Raw unix timestamp as integral
-      [[nodiscard]] auto time_since_epoch() const noexcept { return m_unix_seconds; }
+      [[nodiscard]] auto time_since_epoch() const noexcept {
+        return m_unix_seconds;
+      }
 
-      operator std::uint64_t() const noexcept { return m_unix_seconds; }
+      operator std::uint64_t() const noexcept {
+        return m_unix_seconds;
+      }
 
      private:
       struct timestamp {
@@ -2509,13 +2703,17 @@ namespace shadow {
       constexpr zoned_time(std::uint64_t unix_timestamp, std::int64_t timezone_offset) noexcept
           : m_unix_seconds(unix_timestamp), m_timezone_offset(timezone_offset) {}
 
-      [[nodiscard]] auto utc() const noexcept { return time_formatter{m_unix_seconds}; }
+      [[nodiscard]] auto utc() const noexcept {
+        return time_formatter{m_unix_seconds};
+      }
 
       [[nodiscard]] auto local() const noexcept {
         return time_formatter{m_unix_seconds + m_timezone_offset};
       }
 
-      operator std::uint64_t() const noexcept { return m_unix_seconds; }
+      operator std::uint64_t() const noexcept {
+        return m_unix_seconds;
+      }
 
      private:
       std::uint64_t m_unix_seconds;
@@ -2546,15 +2744,21 @@ namespace shadow {
      public:
       constexpr shared_data() : m_data(memory_location.ptr<win::kernel_user_shared_data>()) {}
 
-      [[nodiscard]] auto* raw() const noexcept { return m_data; }
+      [[nodiscard]] auto* raw() const noexcept {
+        return m_data;
+      }
 
       [[nodiscard]] auto kernel_debugger_present() const noexcept {
         return m_data->kernel_debugger_enabled;
       }
 
-      [[nodiscard]] auto safe_boot_enabled() const noexcept { return m_data->safe_boot_mode; }
+      [[nodiscard]] auto safe_boot_enabled() const noexcept {
+        return m_data->safe_boot_mode;
+      }
 
-      [[nodiscard]] auto boot_id() const noexcept { return m_data->boot_id; }
+      [[nodiscard]] auto boot_id() const noexcept {
+        return m_data->boot_id;
+      }
 
       [[nodiscard]] auto physical_pages_num() const noexcept {
         return m_data->number_of_physical_pages;
@@ -2567,7 +2771,9 @@ namespace shadow {
         return win::unicode_string{string_pointer, string_size};
       }
 
-      [[nodiscard]] auto timezone_id() const noexcept { return m_data->time_zone_id; }
+      [[nodiscard]] auto timezone_id() const noexcept {
+        return m_data->time_zone_id;
+      }
 
       template <concepts::chrono_duration Ty>
       [[nodiscard]] auto timezone_offset() const noexcept(std::is_nothrow_constructible_v<Ty>) {
@@ -2950,13 +3156,21 @@ namespace shadow {
       return m_shellcode.execute<Ty>(shadow::detail::convert_nulls_to_nullptrs(args)...);
     }
 
-    void set_ssn_parser(ssn_parser_t parser) { m_ssn_parser.swap(parser); }
+    void set_ssn_parser(ssn_parser_t parser) {
+      m_ssn_parser.swap(parser);
+    }
 
-    void set_last_error(std::uint32_t error) noexcept { m_last_error.emplace(error); }
+    void set_last_error(std::uint32_t error) noexcept {
+      m_last_error.emplace(error);
+    }
 
-    std::optional<std::uint32_t> last_error() const noexcept { return m_last_error; }
+    std::optional<std::uint32_t> last_error() const noexcept {
+      return m_last_error;
+    }
 
-    explicit operator bool() const noexcept { return !m_last_error.has_value(); }
+    explicit operator bool() const noexcept {
+      return !m_last_error.has_value();
+    }
 
    private:
     void setup_shellcode() noexcept {
@@ -3026,9 +3240,13 @@ namespace shadow {
           shadow::detail::convert_nulls_to_nullptrs(args)...);
     }
 
-    [[nodiscard]] auto export_location() const noexcept { return m_export.location(); }
+    [[nodiscard]] auto export_location() const noexcept {
+      return m_export.location();
+    }
 
-    [[nodiscard]] auto dll_export() const noexcept { return m_export; }
+    [[nodiscard]] auto dll_export() const noexcept {
+      return m_export;
+    }
 
     friend std::ostream& operator<<(std::ostream& os, const importer& imp) {
       return os << imp.dll_export();
