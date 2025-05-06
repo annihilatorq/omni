@@ -26,6 +26,7 @@ endif()
 
 # Options
 option(SHADOWSYSCALL_BUILD_TESTS "" OFF)
+option(SHADOWSYSCALL_BUILD_EXAMPLES "" OFF)
 
 project(shadowsyscall
 	LANGUAGES
@@ -95,6 +96,36 @@ if(SHADOWSYSCALL_BUILD_TESTS) # shadowsyscall-build-tests
 	get_directory_property(CMKR_VS_STARTUP_PROJECT DIRECTORY ${PROJECT_SOURCE_DIR} DEFINITION VS_STARTUP_PROJECT)
 	if(NOT CMKR_VS_STARTUP_PROJECT)
 		set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT shadowsyscall-tests)
+	endif()
+
+endif()
+# Target: shadowsyscall-examples
+if(SHADOWSYSCALL_BUILD_EXAMPLES) # shadowsyscall-build-examples
+	set(shadowsyscall-examples_SOURCES
+		cmake.toml
+		"examples/executors.cpp"
+	)
+
+	add_executable(shadowsyscall-examples)
+
+	target_sources(shadowsyscall-examples PRIVATE ${shadowsyscall-examples_SOURCES})
+	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${shadowsyscall-examples_SOURCES})
+
+	target_compile_features(shadowsyscall-examples PRIVATE
+		cxx_std_20
+	)
+
+	target_include_directories(shadowsyscall-examples PRIVATE
+		"include/"
+	)
+
+	target_link_libraries(shadowsyscall-examples PRIVATE
+		shadowsyscall
+	)
+
+	get_directory_property(CMKR_VS_STARTUP_PROJECT DIRECTORY ${PROJECT_SOURCE_DIR} DEFINITION VS_STARTUP_PROJECT)
+	if(NOT CMKR_VS_STARTUP_PROJECT)
+		set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT shadowsyscall-examples)
 	endif()
 
 endif()

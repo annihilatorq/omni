@@ -8,9 +8,11 @@ languages = ["CXX"]
 
 [options]
 SHADOWSYSCALL_BUILD_TESTS = false
+SHADOWSYSCALL_BUILD_EXAMPLES = false
 
 [conditions]
 shadowsyscall-build-tests = "SHADOWSYSCALL_BUILD_TESTS"
+shadowsyscall-build-examples = "SHADOWSYSCALL_BUILD_EXAMPLES"
 
 [target.shadowsyscall]
 type = "interface"
@@ -29,4 +31,12 @@ condition = "shadowsyscall-build-tests"
 sources = ["tests/**.cpp"]
 include-directories = ["include/"]
 link-libraries = ["shadowsyscall", "GTest::gtest_main"]
+compile-features = ["cxx_std_20"]
+
+[target.shadowsyscall-examples]
+type = "executable"
+condition = "shadowsyscall-build-examples"
+sources = ["examples/**.cpp"]
+include-directories = ["include/"]
+link-libraries = ["shadowsyscall"]
 compile-features = ["cxx_std_20"]
