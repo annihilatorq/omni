@@ -578,7 +578,7 @@ namespace shadow {
     };
 
     template <std::ranges::view StrTy, typename CharTy = std::ranges::range_value_t<StrTy>>
-    inline auto remove_api_set_version(const StrTy string) {
+    constexpr auto remove_api_set_version(const StrTy string) {
       // It is rather a hack because it is impossible to declare a constant
       // string for any of its types. The compiler will be able to
       // substitute these ASCII characters for any type of string.
