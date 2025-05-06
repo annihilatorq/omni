@@ -2054,7 +2054,7 @@ namespace shadow {
     class dynamic_link_library {
      public:
       constexpr dynamic_link_library() noexcept = default;
-      dynamic_link_library(hash64_t module_name) : m_data(find(module_name).raw()) {}
+      dynamic_link_library(hash64_t module_name) : m_data(find(module_name).loader_table_entry()) {}
       dynamic_link_library(win::loader_table_entry* module_data) : m_data(module_data) {}
 
       dynamic_link_library(const dynamic_link_library& instance) = default;
@@ -2065,7 +2065,7 @@ namespace shadow {
 
       // \return loader_table_entry* - Raw pointer to Win32
       // loader data about the current module
-      [[nodiscard]] win::loader_table_entry* raw() const noexcept { return m_data; }
+      [[nodiscard]] win::loader_table_entry* loader_table_entry() const noexcept { return m_data; }
 
       // \return image_t - Displaying an image in process
       // memory using the image_t structure from "linuxpe"
