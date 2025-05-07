@@ -30,154 +30,192 @@ Shellcode uses allocator based on `NtAllocateVirtualMemory` & `NtFreeVirtualMemo
 ## Detailed executors example (x64)
 ```cpp
 #include <Windows.h>
+#include <thread>
 #include "shadowsyscall.hpp"
 
-// If “set_custom_ssn_parser” was called, the handling
-// of the syscall index falls entirely on the user.
+// If "set_custom_ssn_parser" was called, the handling
+// of the syscall index is entirely the user's responsibility
 //
 // This function is gonna be called once if caching is enabled.
-// If not, function will be called on every syscall
-std::optional<uint32_t> custom_ssn_parser( shadow::syscaller<NTSTATUS>& instance, shadow::address_t export_address ) {
-    if ( !export_address ) {
-        instance.set_last_error( shadow::errc::ssn_not_found );
-        return std::nullopt;
-    }
-    return *export_address.ptr<std::uint32_t>( 4 );
+// If not, the function will be called on every syscall
+std::optional<uint32_t> custom_ssn_parser(shadow::syscaller<NTSTATUS>& instance,
+                                          shadow::address_t export_address) {
+  if (!export_address) {
+    instance.set_last_error(shadow::error::ssn_not_found);
+    return std::nullopt;
+  }
+  return *export_address.ptr<std::uint32_t>(4);
 }
 
-// Pass the function name as a string, it will be converted
-// into a number at the compile-time by the hash64_t ctor
-void execute_syscall_with_custom_ssn( shadow::hash64_t function_name ) {
-    shadow::syscaller<NTSTATUS> sc{ function_name };
-    sc.set_custom_ssn_parser( custom_ssn_parser );
+// Pass the function name as a string, and it will be converted
+// into a number at compile-time by the hash64_t constructor
+void execute_syscall_with_custom_ssn_parser(shadow::hash64_t function_name) {
+  shadow::syscaller<NTSTATUS> sc{function_name};
+  sc.set_ssn_parser(custom_ssn_parser);
 
-    auto current_process = reinterpret_cast<void*>( -1 );
-    std::uintptr_t debug_port{ 0 };
-    auto [status, err] = sc( current_process, 7, &debug_port, sizeof( std::uintptr_t ), nullptr );
-    if ( err )
-        std::cerr << "Syscall error occurred: " << *err << '\n';
+  auto current_process = reinterpret_cast<void*>(-1);
+  std::uintptr_t debug_port{0};
+  auto status = sc(current_process, 7, &debug_port, sizeof(std::uintptr_t), nullptr);
+  if (auto error = sc.last_error(); error)
+    std::cerr << "Syscall error occurred: " << error.value() << '\n';
 
-    std::cout << "NtQueryInformationProcess status: 0x" << std::hex << status << ", debug port is: " << debug_port << "\n";
+  std::cout << "NtQueryInformationProcess status: 0x" << std::hex << status
+            << ", debug port is: " << debug_port << "\n";
 }
 
 int main() {
-    execute_syscall_with_custom_ssn( "NtQueryInformationProcess" );
+  execute_syscall_with_custom_ssn_parser("NtQueryInformationProcess");
 
-    // Return type may not be specified since v1.2
-    shadowcall( "LoadLibraryA", "user32.dll" );
+  // This is a replacement for: LoadLibraryA("user32.dll");
+  //
+  // Since LoadLibraryA is a function implemented in kernelbase.dll,
+  // and kernelbase.dll is a "pinned" DLL module, it is,
+  // guaranteed to be loaded into the process.
+  shadowcall("LoadLibraryA", "user32.dll");
 
-    // When we know where to look for a specified
-    // export it is better to specify it right away,
-    // it will speed up the search.
-    shadowcall( { "MessageBoxA", "user32.dll" }, nullptr, "string 1", "string 2", MB_OK );
+  // When we know which DLL the export is in, we can specify it so
+  // that we don't have to iterate through the exports of all DLLs
+  shadowcall({"MessageBoxA", "user32.dll"}, nullptr, "string 1", "string 2", MB_OK);
 
-    // Execute any export at runtime. Since we have ct constructor -
-    // every string will be converted to uint64_t during compilation time
-    auto message_box = shadowcall<int>( "MessageBoxA", nullptr, "string 3", "string 4", MB_OK );
+  // Get a wrapper for lazy importing, but with the
+  // ability to get details of a DLL export
+  shadow::importer<int> message_box_import("MessageBoxA");
+  int message_box_result = message_box_import(nullptr, "string 3", "string 4", MB_OK);
 
-    // "message_box" variable is treated same as "int"
-    auto function_result = message_box;
-    std::cout << "Result: " << function_result << ", DLL that contains MessageBoxA is: " << message_box.export_location().filepath().string() << '\n';
+  std::cout << "MessageBoxA returned: " << message_box_result
+            << "; import data is: " << message_box_import.exported_symbol() << '\n';
 
-    auto process = reinterpret_cast<HANDLE>( -1 );
-    const auto current_process = reinterpret_cast<HANDLE>( -1 );
-    auto start_routine = []( void* ) -> DWORD {
-        std::cout << "\nthread started!\n";
-        return 0;
-    };
+  HANDLE thread_handle = nullptr;
+  const auto current_process = reinterpret_cast<HANDLE>(-1);
+  auto start_routine = [](void*) -> DWORD {
+    std::cout << "\nHello from thread " << std::this_thread::get_id() << "\n";
+    return 0;
+  };
 
-    // 1 variant - handle error by return value
-    // Return type may not be specified since v1.2
-    auto [status, error] = shadowsyscall( "NtCreateThreadEx", &process, THREAD_ALL_ACCESS, NULL, current_process,
-                                          static_cast<LPTHREAD_START_ROUTINE>( start_routine ), 0, FALSE, NULL, NULL, NULL, 0 );
+  // 1. Handle syscall failure
+  // Return type may not be specified since v1.2
+  shadow::syscaller<NTSTATUS> create_thread_sc("NtCreateThreadEx");
 
-    if ( error )
-        std::cout << "NtCreateThreadEx error occured: " << *error << "\n";
-    else
-        std::cout << "NtCreateThreadEx call status: 0x" << std::hex << status << '\n';
+  auto create_thread_status = create_thread_sc(
+      &thread_handle, THREAD_ALL_ACCESS, NULL, current_process,
+      static_cast<LPTHREAD_START_ROUTINE>(start_routine), 0, FALSE, NULL, NULL, NULL, 0);
 
-    // 2 variant - when error handling is not required, get a plain return value
-    auto simple_status = shadowsyscall( "NtTerminateProcess", reinterpret_cast<HANDLE>( -1 ), -6932 );
+  if (auto error = create_thread_sc.last_error(); error)
+    std::cout << "NtCreateThreadEx error occurred: " << error.value() << "\n";
+  else
+    std::cout << "NtCreateThreadEx call status: 0x" << std::hex << create_thread_status << '\n';
+
+  // 2. When error handling is not required, get a plain return value
+  auto simple_status = shadowsyscall("NtTerminateProcess", reinterpret_cast<HANDLE>(-1), -6932);
 }
 ```
 
 ## Detailed module & shared-data parser example
 ```cpp
-#include <iostream>
 #include <string>
 #include "shadowsyscall.hpp"
 
+#define obfuscate_string(str)    \
+  []() {                         \
+    /* Any string obfuscation */ \
+    return str;                  \
+  }
+
 int main() {
-    // Enumerate every dll loaded to current process
-    for ( const auto& dll : shadow::dlls() )
-        std::cout << dll.filepath().string() << " : " << dll.native_handle() << "\n";
+  // Enumerate every dll loaded into current process
+  for (const auto& dll : shadow::dlls())
+    std::cout << dll.filepath().string() << " : " << dll.native_handle() << "\n";
 
-    std::cout.put( '\n' );
+  std::cout.put('\n');
 
-    // Find exactly known dll loaded to current process
-    // "ntdll.dll" doesn't leave string in executable, it
-    // being hashed on compile-time with consteval guarantee
-    // The implementation doesn't care about the ".dll" suffix.
-    auto ntdll = shadow::dll( "ntdll" /* after compilation it will become 384989384324938 */ );
+  // Find a specific DLL loaded into the current process.
+  // "ntdll.dll" doesn't leave the string in the executable -
+  // it’s hashed at compile time (consteval guarantee)
+  // The implementation doesn't care about the ".dll" suffix
 
-    auto current_module = shadow::current_module();
-    std::cout << "Current .exe filepath: " << current_module.filepath().string() << "\n";
-    std::cout << "Current .text section checksum: " << current_module.section_checksum<std::size_t>( ".text" ) << "\n\n";
+  auto ntdll = shadow::dll("ntdll" /* after compilation it will become 384989384324938 */);
 
-    std::cout << ntdll.base_address().ptr() << '\n';                         // .base_address() returns address_t
-    std::cout << ntdll.native_handle() << '\n';                              // .native_handle() returns void*
-    std::cout << ntdll.entry_point() << '\n';                                // .entry_point() returns address_t, if presented
-    std::cout << ntdll.name().string() << '\n';                              // .name() returns win::unicode_string
-    std::cout << ntdll.filepath().to_path().extension() << '\n';             // .filepath() returns win::unicode_string
-    std::cout << ntdll.image()->get_nt_headers()->signature << '\n';         // returns uint32_t, NT magic value
-    std::cout << ntdll.image()->get_optional_header()->size_image << "\n\n"; // returns uint32_t, loaded NTDLL image size
+  auto current_module = shadow::current_module();
+  std::cout << "Current .exe filepath: " << current_module.filepath().string() << "\n";
+  std::cout << "Current .text section checksum: "
+            << current_module.section_checksum<std::size_t>(".text") << "\n\n";
 
-    std::cout << "5 exports of ntdll.dll:\n";
-    for ( const auto& [name, address] : ntdll.exports() | std::views::take( 5 ) )
-        std::cout << name << " : " << address.raw() << '\n';
+  auto image = ntdll.image();
+  auto nt_headers = image->get_nt_headers();
+  auto optional_header = image->get_optional_header();
 
-    std::cout.put( '\n' );
+  std::cout << ntdll.base_address().ptr() << '\n';  // .base_address() returns address_t
+  std::cout << ntdll.native_handle() << '\n';       // .native_handle() returns void*
+  std::cout << ntdll.entry_point() << '\n';         // .entry_point() returns address_t, if present
+  std::cout << ntdll.name().string() << '\n';       // .name() returns win::unicode_string
+  std::cout << ntdll.filepath().to_path() << '\n';  // .filepath() returns win::unicode_string
+  std::cout << nt_headers->signature << '\n';       // returns uint32_t, NT magic value
+  std::cout << optional_header->size_image << "\n\n";  // returns uint32_t, loaded NTDLL image size
 
-    auto it = ntdll.exports().find_if( []( auto export_data ) -> bool {
-        const auto& [name, address] = export_data;
-        constexpr auto compiletime_hash = shadow::hash64_t{ "NtQuerySystemInformation" }; // after compilation it will become 384989384324938
-        const auto runtime_hash = shadow::hash64_t{}( name );                             // accepts any range that have access by index
-        return compiletime_hash == runtime_hash;
-    } );
+  constexpr int export_entries_count = 5;
+  const auto exports = ntdll.exports() | std::views::take(export_entries_count);
 
-    const auto& [name, address] = *it;
-    std::cout << "Found target export:\n" << name << " : " << address << "\n\n";
+  std::cout << export_entries_count << " exports of ntdll.dll:\n";
+  for (const shadow::win::export_t& exp : exports) {
+    const auto& [name, address, ordinal] = std::make_tuple(exp.name, exp.address, exp.ordinal);
+    std::cout << name << " : " << address << " : " << ordinal << '\n';
+  }
 
-    // "location" returns a DLL struct that contains this export
-    std::cout << "DLL that contains Sleep export is: " << shadow::dll_export( "Sleep" ).location().name().to_path() << "\n\n";
+  std::cout.put('\n');
 
-    // shared_data parses KUSER_SHARED_DATA
-    // The class is a high-level wrapper for parsing,
-    // which will save you from direct work with raw addresses
+  auto it = ntdll.exports().find_if([](const shadow::win::export_t& export_data) -> bool {
+    // after compilation becomes 384989384324938
+    constexpr auto compiletime_hash = shadow::hash64_t{"NtQuerySystemInformation"};
+    // operator() (called in runtime) accepts any range that have access by index
+    const auto runtime_hash = shadow::hash64_t{}(export_data.name);
+    return compiletime_hash == runtime_hash;
+  });
 
-    auto shared = shadow::shared_data();
+  const shadow::win::export_t& export_data = *it;
+  std::cout << "Found target export:\n"
+            << export_data.name << " : " << export_data.address << "\n\n";
 
-    std::cout << shared.safe_boot_enabled() << '\n';
-    std::cout << shared.boot_id() << '\n';
-    std::cout << shared.physical_pages_num() << '\n';
-    std::cout << shared.kernel_debugger_present() << '\n';
-    std::wcout << shared.system_root().to_path() << '\n';
+  // "location" returns a DLL struct that contains this export
+  std::cout << "The DLL that contains the Sleep export is: "
+            << shadow::exported_symbol("Sleep").location().name().to_path() << "\n\n";
 
-    std::cout << shared.system().is_windows_11() << '\n';
-    std::cout << shared.system().is_windows_10() << '\n';
-    std::cout << shared.system().is_windows_7() << '\n';
-    std::cout << shared.system().build_number() << '\n';
-    std::cout << shared.system().formatted() << '\n';
+  // shared_data parses KUSER_SHARED_DATA
+  // The class is a high-level wrapper for parsing,
+  // which saves you from pointer arithmetic
 
-    std::cout << shared.unix_epoch_timestamp().utc().time_since_epoch() << '\n';
-    std::cout << shared.unix_epoch_timestamp().utc().format_iso8601() << '\n';
-    std::cout << shared.unix_epoch_timestamp().local().time_since_epoch() << '\n';
-    std::cout << shared.unix_epoch_timestamp().local().format_iso8601() << '\n';
-    std::cout << shared.timezone_offset<std::chrono::seconds>() << "\n\n";
+  auto shared = shadow::shared_data();
 
-    // Iterators are compatible with the ranges library
-    static_assert( std::bidirectional_iterator<shadow::detail::export_enumerator::iterator> );
-    static_assert( std::bidirectional_iterator<shadow::detail::module_enumerator::iterator> );
+  std::cout << shared.safe_boot_enabled() << '\n';
+  std::cout << shared.boot_id() << '\n';
+  std::cout << shared.physical_pages_num() << '\n';
+  std::cout << shared.kernel_debugger_present() << '\n';
+  std::wcout << shared.system_root().to_path() << '\n';
+
+  std::cout << shared.system().is_windows_11() << '\n';
+  std::cout << shared.system().is_windows_10() << '\n';
+  std::cout << shared.system().is_windows_7() << '\n';
+  std::cout << shared.system().build_number() << '\n';
+  std::cout << shared.system().formatted() << '\n';
+
+  std::cout << shared.unix_epoch_timestamp().utc().time_since_epoch() << '\n';
+  std::cout << shared.unix_epoch_timestamp().utc().format_iso8601() << '\n';
+  std::cout << shared.unix_epoch_timestamp().local().time_since_epoch() << '\n';
+  std::cout << shared.unix_epoch_timestamp().local().format_iso8601() << '\n';
+  std::cout << shared.timezone_offset<std::chrono::seconds>() << "\n\n";
+
+  // Iterators are compatible with the ranges library
+  static_assert(std::bidirectional_iterator<shadow::detail::export_view::iterator>);
+  static_assert(std::bidirectional_iterator<shadow::detail::module_view::iterator>);
+
+  // Code below DOES NOT COMPILE. hash*_t requires a string literal
+  // because the hashing of the string happens at compile time, so there
+  // is no point in you obfuscating the string in any way, because it
+  // will turn into a number and disappear from the binary after compilation.
+  //
+  // constexpr auto hash_that_causes_ct_error = shadow::hash64_t{string_obfuscator("string")};
+  //
+  // The right way to do it is:
+  // constexpr auto valid_hash = shadow::hash64_t{"string"};
 }
 ```
 
