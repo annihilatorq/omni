@@ -277,6 +277,75 @@ int main() {
 }
 ```
 
+<details>
+  <summary>Console output</summary>
+
+  ```
+List of DLLs loaded in the current process:
+C:\WINDOWS\SYSTEM32\ntdll.dll : 0x7ff933ca0000
+C:\WINDOWS\System32\KERNEL32.DLL : 0x7ff933310000
+C:\WINDOWS\System32\KERNELBASE.dll : 0x7ff930f40000
+C:\WINDOWS\SYSTEM32\MSVCP140D.dll : 0x7ff8de390000
+C:\WINDOWS\SYSTEM32\VCRUNTIME140D.dll : 0x7ff916180000
+C:\WINDOWS\SYSTEM32\VCRUNTIME140_1D.dll : 0x7ff92de60000
+C:\WINDOWS\SYSTEM32\ucrtbased.dll : 0x7ff8b2c10000
+
+Current .exe filepath: C:\artem\cpp\shadow_syscall\build\examples\module_parser.exe
+Current .text section checksum: 125651
+Current module handle: 0x7ff603430000
+
+5 first exports of ntdll.dll
+A_SHAFinal : 140708292465152 : 9
+A_SHAInit : 140708293421120 : 10
+A_SHAUpdate : 140708292472976 : 11
+AlpcAdjustCompletionListConcurrencyCount : 140708293569872 : 12
+AlpcFreeCompletionListMessage : 140708293345488 : 13
+
+Export NtQuerySystemInformation VA is 0x7ff933dfc670
+The DLL that contains the Sleep export is: KERNEL32.DLL
+
+
+                         [NTDLL]:
+                    Base Address: 00007FF933CA0000
+                   Native Handle: 00007FF933CA0000
+                     Entry Point: 0000000000000000
+                            Name: ntdll.dll
+                    Path to File: "C:\\WINDOWS\\SYSTEM32\\ntdll.dll"
+                 Reference count: 65535
+                      Image Size: 2490368
+                  Sections count: 15
+                   Exports count: 2513
+
+                        [KERNEL]:
+                       Safe boot: 0
+                         Boot ID: 30
+              Physical Pages Num: 8368911
+         Kernel debugger present: 0
+                     System root: C:\WINDOWS
+
+                        [SYSTEM]:
+                      Windows 11: 1
+                      Windows 10: 0
+                       Windows 7: 0
+                      Windows XP: 0
+                   Windows Vista: 0
+                OS Major Version: 10
+                OS Minor Version: 0
+                 OS Build Number: 26100
+             Formatted OS String: Windows 10.0 (Build 26100)
+
+                          [TIME]:
+                       Unix Time: 1746659595
+                       Unix Time: 2025-05-07T23:13:15
+               Unix Time (Local): 1746666795
+    Unix Time (Local) (ISO 8601): 2025-05-08T01:13:15
+                    Windows Time: 133911331957842469
+                     Timezone ID: 2
+                 Timezone offset: 7200s
+  ```
+  
+</details>
+
 ## Hardware processor parser
 ```cpp
 #include <iomanip>
