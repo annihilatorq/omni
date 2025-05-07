@@ -3,10 +3,10 @@
 #include "shadowsyscall.hpp"
 
 // If "set_custom_ssn_parser" was called, the handling
-// of the syscall index falls entirely on the user.
+// of the syscall index is entirely the user's responsibility
 //
 // This function is gonna be called once if caching is enabled.
-// If not, function will be called on every syscall
+// If not, the function will be called on every syscall
 std::optional<uint32_t> custom_ssn_parser(shadow::syscaller<NTSTATUS>& instance,
                                           shadow::address_t export_address) {
   if (!export_address) {
@@ -17,7 +17,7 @@ std::optional<uint32_t> custom_ssn_parser(shadow::syscaller<NTSTATUS>& instance,
 }
 
 // Pass the function name as a string, and it will be converted
-// into a number at the compile-time by the hash64_t constructor
+// into a number at compile-time by the hash64_t constructor
 void execute_syscall_with_custom_ssn_parser(shadow::hash64_t function_name) {
   shadow::syscaller<NTSTATUS> sc{function_name};
   sc.set_ssn_parser(custom_ssn_parser);
@@ -35,10 +35,10 @@ void execute_syscall_with_custom_ssn_parser(shadow::hash64_t function_name) {
 int main() {
   execute_syscall_with_custom_ssn_parser("NtQueryInformationProcess");
 
-  // This is a replacement for - LoadLibraryA("user32.dll");
+  // This is a replacement for: LoadLibraryA("user32.dll");
   //
   // Since LoadLibraryA is a function implemented in kernelbase.dll,
-  // and kernelbase.dll is a "pinned" DLL module, it is
+  // and kernelbase.dll is a "pinned" DLL module, it is,
   // guaranteed to be loaded into the process.
   shadowcall("LoadLibraryA", "user32.dll");
 
@@ -52,9 +52,9 @@ int main() {
   int message_box_result = message_box_import(nullptr, "string 3", "string 4", MB_OK);
 
   std::cout << "MessageBoxA returned: " << message_box_result
-            << ", import data is: " << message_box_import.exported_symbol() << '\n';
+            << "; import data is: " << message_box_import.exported_symbol() << '\n';
 
-  auto thread_handle = nullptr;
+  HANDLE thread_handle = nullptr;
   const auto current_process = reinterpret_cast<HANDLE>(-1);
   auto start_routine = [](void*) -> DWORD {
     std::cout << "\nHello from thread " << std::this_thread::get_id() << "\n";
@@ -70,7 +70,7 @@ int main() {
       static_cast<LPTHREAD_START_ROUTINE>(start_routine), 0, FALSE, NULL, NULL, NULL, 0);
 
   if (auto error = create_thread_sc.last_error(); error)
-    std::cout << "NtCreateThreadEx error occured: " << error.value() << "\n";
+    std::cout << "NtCreateThreadEx error occurred: " << error.value() << "\n";
   else
     std::cout << "NtCreateThreadEx call status: 0x" << std::hex << create_thread_status << '\n';
 
