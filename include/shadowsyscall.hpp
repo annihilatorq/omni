@@ -3418,7 +3418,7 @@ namespace shadow {
 
       return exp;
 #else
-      return exported_symbol(export_name);
+      return shadow::exported_symbol(export_name, module_name);
 #endif
     }
 
