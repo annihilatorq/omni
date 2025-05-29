@@ -1192,12 +1192,7 @@ namespace shadow {
 #ifdef SHADOWSYSCALLS_SEED
     constexpr uint64_t library_seed = SHADOWSYSCALLS_SEED;
 #else
-    constexpr uint64_t library_seed = []() consteval {
-      uint64_t hash = 0;
-      for (auto c : __DATE__)
-        hash ^= static_cast<uint64_t>(c) * 0x3281238589232841ull;
-      return hash;
-    }();
+    constexpr uint64_t library_seed = 0x8953484829149489ull;
 #endif
 
     // basic_hash class provides compile-time and runtime hash
