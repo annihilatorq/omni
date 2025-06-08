@@ -1676,7 +1676,7 @@ namespace shadow {
       }
 
       Ty append_tail(const std::span<const char> data, std::size_t pos) const {
-        return std::reduce(data.begin() + pos, data.end(), 0ull, [](Ty acc, char byte) {
+        return std::reduce(data.begin() + pos, data.end(), Ty{}, [](Ty acc, char byte) {
           return acc + static_cast<unsigned char>(byte);
         });
       }
