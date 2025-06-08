@@ -2334,7 +2334,7 @@ namespace shadow {
                                     });
 
         const auto section_content =
-            std::span{module_base.ptr<char>(section->virtual_address), section->virtual_size};
+            std::span{module_base.ptr<uint8_t>(section->virtual_address), section->virtual_size};
         return memory_checksum<Ty>{section_content}.result();
       }
 
