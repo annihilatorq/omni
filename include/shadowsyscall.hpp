@@ -1628,7 +1628,7 @@ namespace shadow {
       using vector128_t = __m128i;
 
      public:
-      explicit memory_checksum(const std::span<const char> data) noexcept {
+      explicit memory_checksum(const std::span<const uint8_t> data) noexcept {
         const auto size = data.size();
         auto sum = _mm_setzero_si128();
         std::size_t pos = 0;
@@ -1654,7 +1654,7 @@ namespace shadow {
       }
 
      private:
-      void process_block(const std::span<const char> data, std::size_t pos,
+      void process_block(const std::span<const uint8_t> data, std::size_t pos,
                          vector128_t& sum) const {
         // Load 16 bytes in one-go
         auto block = _mm_loadu_si128(reinterpret_cast<const vector128_t*>(&data[pos]));
@@ -1675,7 +1675,7 @@ namespace shadow {
         return std::accumulate(std::begin(temp), std::end(temp), Ty{0});
       }
 
-      Ty append_tail(const std::span<const char> data, std::size_t pos) const {
+      Ty append_tail(const std::span<const uint8_t> data, std::size_t pos) const {
         return std::reduce(data.begin() + pos, data.end(), Ty{}, [](Ty acc, char byte) {
           return acc + static_cast<unsigned char>(byte);
         });
