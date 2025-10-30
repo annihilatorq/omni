@@ -3063,7 +3063,7 @@ namespace shadow {
     return detail::dynamic_link_library{name};
   }
 
-  inline auto current_module() {
+  inline auto base_module() {
     return *(detail::module_view{}.begin());
   }
 
