@@ -44,12 +44,12 @@ int main() {
   auto ntdll_name_hash = shadow::hash64_t{"ntdll"};
   auto ntdll = shadow::dll(ntdll_name_hash);
 
-  auto current_module = shadow::current_module();
-  debug_log("Current .exe filepath: {}", current_module.filepath().string());
+  auto base_module = shadow::base_module();
+  debug_log("Current .exe filepath: {}", base_module.filepath().string());
   debug_log("Current .text section checksum: {}",
-            current_module.section_checksum<std::size_t>(".text"));
+            base_module.section_checksum<std::size_t>(".text"));
   debug_log("Current module handle: {}",
-            current_module.native_handle());  // same as GetModuleHandle(nullptr)
+            base_module.native_handle());  // same as GetModuleHandle(nullptr)
   new_line();
 
   auto image = ntdll.image();
