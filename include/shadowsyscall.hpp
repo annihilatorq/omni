@@ -100,9 +100,11 @@ namespace shadow::concepts {
 #ifdef SHADOW_RELAXED_POINTER_COMPAT
   constexpr bool allow_any_ptr_for_ptr_param = true;  // U* -> T*
   constexpr bool allow_voidptr_for_ptr_param = true;  // void* -> T*
+  constexpr bool allow_integrals_for_ptr_param = true;
 #else
   constexpr bool allow_any_ptr_for_ptr_param = false;
   constexpr bool allow_voidptr_for_ptr_param = false;
+  constexpr bool allow_integrals_for_ptr_param = false;
 #endif
 
   template <typename ParamType, typename ArgType>
@@ -132,8 +134,10 @@ namespace shadow::concepts {
         return std::is_same_v<ParamPointeeT, ArgPointeeT>;
       }
 
-      if constexpr (std::is_integral_v<ArgDecayedT>)  // allow passing integer-zero for a pointer
+      // allow passing NULL for a pointer
+      if constexpr (allow_integrals_for_ptr_param && std::is_integral_v<ArgDecayedT>) {
         return true;
+      }
 
       return false;
     }
