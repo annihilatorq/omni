@@ -3166,10 +3166,15 @@ namespace shadow {
       void* current_process{reinterpret_cast<void*>(-1)};
       void* base_address = address;
       std::uint64_t region_size = allocation_size;
-      static address_t allocation_procedure{
-          exported_symbol("NtAllocateVirtualMemory", "ntdll.dll").address()};
 
-      auto result = allocation_procedure.execute<NTSTATUS>(
+      constexpr auto procedure_name = hash64_t{"NtAllocateVirtualMemory"};
+      auto allocation_procedure = detail::address_cache[procedure_name.get()];
+      if (!allocation_procedure.present()) {
+        allocation_procedure = exported_symbol(procedure_name, "ntdll.dll");
+        detail::address_cache.emplace(procedure_name.get(), allocation_procedure);
+      }
+
+      auto result = allocation_procedure.address().execute<NTSTATUS>(
           current_process, &base_address, 0ull, &region_size, allocation_t & 0xFFFFFFC0, protect);
       return result >= 0 ? base_address : nullptr;
     }
@@ -3179,17 +3184,24 @@ namespace shadow {
       auto region_size{allocation_size};
       void* base_address = address;
       void* current_process{reinterpret_cast<void*>(-1)};
-      static address_t free_procedure{
-          exported_symbol("NtFreeVirtualMemory", "ntdll.dll").address()};
 
-      if (((flags & 0xFFFF3FFC) != 0 || (flags & 0x8003) == 0x8000) && allocation_size)
+      constexpr auto procedure_name = hash64_t{"NtFreeVirtualMemory"};
+      auto free_procedure = detail::address_cache[procedure_name.get()];
+      if (!free_procedure.present()) {
+        free_procedure = exported_symbol(procedure_name, "ntdll.dll");
+        detail::address_cache.emplace(procedure_name.get(), free_procedure);
+      }
+
+      if (((flags & 0xFFFF3FFC) != 0 || (flags & 0x8003) == 0x8000) && allocation_size) {
         result = -0x3FFFFFF3;
+      }
 
-      result =
-          free_procedure.execute<NTSTATUS>(current_process, &base_address, &region_size, flags);
-      if (result == -0x3FFFFFBB)
-        result =
-            free_procedure.execute<NTSTATUS>(current_process, &base_address, &region_size, flags);
+      result = free_procedure.address().execute<NTSTATUS>(current_process, &base_address,
+                                                          &region_size, flags);
+      if (result == -0x3FFFFFBB) {
+        result = free_procedure.address().execute<NTSTATUS>(current_process, &base_address,
+                                                            &region_size, flags);
+      }
 
       return result >= 0;
     }
