@@ -1305,19 +1305,27 @@ namespace shadow {
     constexpr uint64_t library_seed = 0x8953484829149489ull;
 #endif
 
+    template <std::integral Ty = std::uint64_t>
+    struct hasher_opts {
+      bool case_sensitive = false;
+      bool seed = true;
+      Ty custom_seed{0};
+    };
+
+    constexpr auto default_hasher_opts = hasher_opts<>{};
+
     // basic_hash class provides compile-time and runtime hash
     // computation. Uses FNV-1a hashing algorithm.
     // Case-insensitive by default.
-    template <std::integral ValTy>
+    template <std::integral ValTy, hasher_opts Opts = default_hasher_opts>
     class basic_hash {
-     public:
-      using underlying_t = ValTy;
-      constexpr static bool case_sensitive = false;
       constexpr static ValTy FNV_prime = (sizeof(ValTy) == 4) ? 16777619u : 1099511628211ull;
       constexpr static ValTy FNV_offset_basis =
           (sizeof(ValTy) == 4) ? 2166136261u : 14695981039346656037ull;
 
      public:
+      using underlying_t = ValTy;
+
       constexpr basic_hash(ValTy hash) : m_value(hash) {}
       constexpr basic_hash() = default;
       constexpr ~basic_hash() = default;
@@ -1335,6 +1343,11 @@ namespace shadow {
 
       consteval basic_hash(const char* string, std::size_t len) {
         for (auto i = 0; i < len; i++)
+          m_value = fnv1a_append_bytes<>(m_value, string[i]);
+      }
+
+      consteval basic_hash(std::string_view string) {
+        for (auto i = 0; i < string.size(); i++)
           m_value = fnv1a_append_bytes<>(m_value, string[i]);
       }
 
@@ -1367,8 +1380,8 @@ namespace shadow {
       template <typename CharTy>
       [[nodiscard]] constexpr ValTy fnv1a_append_bytes(ValTy value,
                                                        const CharTy byte) const noexcept {
-        const auto lowercase_byte = case_sensitive ? byte : to_lower(byte);
-        value ^= static_cast<ValTy>(lowercase_byte);
+        const auto byte_to_hash = Opts.case_sensitive ? byte : to_lower(byte);
+        value ^= static_cast<ValTy>(byte_to_hash);
         value *= FNV_prime;
         return value;
       }
@@ -1378,8 +1391,18 @@ namespace shadow {
         return ((c >= 'A' && c <= 'Z') ? (c + 32) : c);
       }
 
-     private:
-      ValTy m_value{FNV_offset_basis + static_cast<ValTy>(library_seed)};
+      constexpr static ValTy initial_value = []() {
+        if constexpr (Opts.seed) {
+          if constexpr (Opts.custom_seed != 0) {
+            return FNV_offset_basis + Opts.custom_seed;
+          } else {
+            return FNV_offset_basis + static_cast<ValTy>(library_seed);
+          }
+        }
+        return FNV_offset_basis;
+      }();
+
+      ValTy m_value{initial_value};
     };
 
     using hash32_t = detail::basic_hash<uint32_t>;
