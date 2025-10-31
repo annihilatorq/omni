@@ -82,6 +82,7 @@ if(SHADOWSYSCALL_BUILD_TESTS) # shadowsyscall-build-tests
 		"tests/address.cpp"
 		"tests/cache.cpp"
 		"tests/dll_export.cpp"
+		"tests/extract_function_name.cpp"
 		"tests/forwarded_exports.cpp"
 		"tests/hasher.cpp"
 		"tests/nt_memory_allocator.cpp"
