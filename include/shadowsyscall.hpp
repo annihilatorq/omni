@@ -1112,9 +1112,9 @@ namespace shadow {
 
   namespace detail {
 #ifdef SHADOWSYSCALLS_DISABLE_CACHING
-    //still use cache, just not a locking one.
-    inline std::atomic<address_t> cached_alloc_proc{ 0 };
-    inline std::atomic<address_t> cached_free_proc{ 0 };
+    // still use cache, just not a locking one.
+    inline std::atomic<address_t> cached_alloc_proc{0};
+    inline std::atomic<address_t> cached_free_proc{0};
 #endif
     template <typename Ty>
     struct type_hash {
@@ -3170,6 +3170,7 @@ namespace shadow {
       void* current_process{reinterpret_cast<void*>(-1)};
       void* base_address = address;
       std::uint64_t region_size = allocation_size;
+
 #ifndef SHADOWSYSCALLS_DISABLE_CACHING
       constexpr auto procedure_name = hash64_t{"NtAllocateVirtualMemory"};
       auto alloc_sym = detail::address_cache[procedure_name.get()];
@@ -3178,14 +3179,15 @@ namespace shadow {
         detail::address_cache.emplace(procedure_name.get(), alloc_sym);
       }
       auto allocation_procedure = alloc_sym.address();
-#else 
+#else
       auto allocation_procedure = detail::cached_alloc_proc.load(std::memory_order_acquire);
       if (!allocation_procedure) {
-        auto addr = exported_symbol(hash64_t{ "NtAllocateVirtualMemory" }, "ntdll.dll").address();
+        auto addr = exported_symbol(hash64_t{"NtAllocateVirtualMemory"}, "ntdll.dll").address();
         detail::cached_alloc_proc.store(addr);
         allocation_procedure = addr;
       }
 #endif
+
       auto result = allocation_procedure.execute<NTSTATUS>(
           current_process, &base_address, 0ull, &region_size, allocation_t & 0xFFFFFFC0, protect);
       return result >= 0 ? base_address : nullptr;
@@ -3196,6 +3198,7 @@ namespace shadow {
       auto region_size{allocation_size};
       void* base_address = address;
       void* current_process{reinterpret_cast<void*>(-1)};
+
 #ifndef SHADOWSYSCALLS_DISABLE_CACHING
       constexpr auto procedure_name = hash64_t{"NtFreeVirtualMemory"};
       auto free_sym = detail::address_cache[procedure_name.get()];
@@ -3212,15 +3215,16 @@ namespace shadow {
         free_procedure = addr;
       }
 #endif
+
       if (((flags & 0xFFFF3FFC) != 0 || (flags & 0x8003) == 0x8000) && allocation_size) {
         result = -0x3FFFFFF3;
       }
 
-      result = free_procedure.execute<NTSTATUS>(current_process, &base_address,
-                                                          &region_size, flags);
+      result =
+          free_procedure.execute<NTSTATUS>(current_process, &base_address, &region_size, flags);
       if (result == -0x3FFFFFBB) {
-        result = free_procedure.execute<NTSTATUS>(current_process, &base_address,
-                                                            &region_size, flags);
+        result =
+            free_procedure.execute<NTSTATUS>(current_process, &base_address, &region_size, flags);
       }
 
       return result >= 0;
