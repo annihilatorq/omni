@@ -408,10 +408,10 @@ namespace shadow {
           return to_path().string();
         } else {
           // Otherwise, return string_view converted to std::string
-          // Note: contains_non_ascii guarantees correct conversion here?
+          // \note: contains_non_ascii guarantees correct conversion here
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable : 4244) // conversion from 'const wchar_t' to 'char'
+#pragma warning(disable : 4244)  // conversion from 'const wchar_t' to 'char'
 #endif
           return std::string(source_str.begin(), source_str.end());
 #ifdef _MSC_VER
