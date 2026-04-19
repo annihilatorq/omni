@@ -1,0 +1,85 @@
+---
+title: Lazy Import
+description: Resolve and call WinAPI exports without direct linking
+---
+
+## `omni::lazy_importer<T>`
+
+A typed wrapper for export lookup and subsequent invocation.
+
+### Constructors
+
+- from `export_name_hash`;
+- from a pair of `export_name_hash` and `module_name_hash`.
+
+### Main methods
+
+| Method | Returns | Purpose |
+| --- | --- | --- |
+| `try_invoke(args...)` | `std::expected<T, std::error_code>` | invoke with diagnostics |
+| `invoke(args...)` | `T` | invoke without explicit error handling |
+| `operator()(args...)` | `T` | shorthand invocation |
+| `module_export()` | `omni::module_export` | return found export metadata |
+
+If the export is not resolved, `invoke()` returns a default-constructed `T`, and `try_invoke()` returns an error.
+
+## `omni::lazy_import`
+
+A set of free overloads for short API calls.
+
+### By name/hash
+
+- `omni::lazy_import<T>(export_name_hash, args...)`
+- `omni::lazy_import<T>(omni::hash_pair<>{export, module}, args...)`
+
+### By function signature
+
+- `omni::lazy_import<F>(export_name_hash, args...)`
+- `omni::lazy_import<F>(omni::hash_pair<>{export, module}, args...)`
+
+### By compile-time function pointer
+
+- `omni::lazy_import<Func, Hasher>(args...)`
+- `omni::lazy_import<Func>(args...)`
+- `omni::lazy_import<Func, ModuleName, Hasher>(args...)`
+- `omni::lazy_import<Func, ModuleName>(args...)`
+
+## Examples
+
+### Generic return type
+
+```cpp
+auto process_id = omni::lazy_import<DWORD>("GetCurrentProcessId");
+```
+
+### Typed importer
+
+```cpp
+using get_module_handle_w_fn = HMODULE(WINAPI*)(LPCWSTR);
+auto get_module_handle = omni::lazy_importer<get_module_handle_w_fn>{"GetModuleHandleW"};
+
+HMODULE handle = get_module_handle(L"kernel32.dll");
+auto export_entry = get_module_handle.module_export();
+```
+
+### Export + module pair
+
+```cpp
+auto system_dir = omni::lazy_import<UINT(WINAPI*)(LPWSTR, UINT)>(
+  {"GetSystemDirectoryW", "kernel32.dll"},
+  buffer.data(),
+  static_cast<UINT>(buffer.size())
+);
+```
+
+## Errors
+
+`try_invoke()` uses the same `std::error_code` values as the export-resolution API:
+
+- `module_not_loaded`
+- `export_not_found`
+- `forwarder_string_invalid`
+
+## Caching
+
+Unless `OMNI_DISABLE_CACHING` is defined, resolved exports are cached. The library also checks that the owning module is still loaded and refreshes stale cache entries.

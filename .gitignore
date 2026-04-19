@@ -1,0 +1,31 @@
+# dependencies
+/node_modules
+
+# generated content and caches
+/.source
+/.next
+/out
+/build
+*.tsbuildinfo
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# environment
+.env*.local
+.env.local
+
+# deployment / local tooling
+.vercel
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.pem
+
+# package manager
+/.pnp
+.pnp.js

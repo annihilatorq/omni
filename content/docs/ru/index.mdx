@@ -1,0 +1,51 @@
+---
+title: Введение
+description: Публичный API header-only C++23 библиотеки для Windows low-level задач
+---
+
+# omni
+
+`omni` — header-only C++23 библиотека для Windows-oriented low-level разработки: inspection модулей и экспортов, lazy import, syscall wrappers, shared user data и compile-time hashing.
+
+## Что есть в публичном API
+
+<Cards>
+  <Card title="Quick Start" href="/docs/quick-start" />
+  <Card title="Utilities" href="/docs/utilities" />
+  <Card title="Status" href="/docs/status" />
+  <Card title="Modules" href="/docs/modules" />
+  <Card title="Exports" href="/docs/exports" />
+  <Card title="Lazy Import" href="/docs/lazy-import" />
+  <Card title="Syscalls" href="/docs/syscalls" />
+  <Card title="Shared User Data" href="/docs/shared-user-data" />
+  <Card title="Allocator" href="/docs/allocator" />
+</Cards>
+
+## Основные возможности
+
+- доступ к loader list как к range через `omni::modules`;
+- работа с PE export table через `omni::module_exports` и `omni::module_export`;
+- поиск экспортов по имени, хешу и ordinal;
+- вызов WinAPI через `omni::lazy_import` и `omni::lazy_importer`;
+- вызов NT syscalls через `omni::syscall` и `omni::syscaller`;
+- чтение `KUSER_SHARED_DATA` через `omni::shared_user_data()`;
+- compile-time hash типы `omni::fnv1a32`, `omni::fnv1a64` и `omni::default_hash`.
+
+## Для кого эта документация
+
+Этот сайт описывает именно публичный API, доступный пользователю библиотеки. Внутренние детали из `omni/detail/*` не документируются как поддерживаемый контракт.
+
+## Заголовки публичного API
+
+- `omni/address.hpp`
+- `omni/hash.hpp`
+- `omni/error.hpp`
+- `omni/status.hpp`
+- `omni/module.hpp`
+- `omni/modules.hpp`
+- `omni/module_export.hpp`
+- `omni/module_exports.hpp`
+- `omni/lazy_import.hpp`
+- `omni/syscall.hpp`
+- `omni/shared_user_data.hpp`
+- `omni/allocator.hpp`

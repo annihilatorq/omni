@@ -1,0 +1,56 @@
+---
+title: Shared User Data
+description: Access to KUSER_SHARED_DATA through omni
+---
+
+## `omni::shared_user_data()`
+
+Returns a pointer `omni::win::kernel_user_shared_data*` to the fixed `KUSER_SHARED_DATA` mapping at address `0x7ffe0000`.
+
+```cpp
+const auto* shared = omni::shared_user_data();
+```
+
+## `omni::win::kernel_user_shared_data`
+
+A public structure describing the shared user data available to every process.
+
+### Practically useful method
+
+- `system_root()` — return a `std::filesystem::path` for `nt_system_root`.
+
+### Frequently used fields
+
+- `nt_major_version`
+- `nt_minor_version`
+- `nt_build_number`
+- `active_processor_count`
+- `active_group_count`
+- `qpc_frequency`
+- `safe_boot_mode`
+- `dbg_secure_boot_enabled`
+- `virtualization_flags`
+
+### Example
+
+```cpp
+const auto* shared = omni::shared_user_data();
+
+std::println("system root: {}", shared->system_root().string());
+std::println("version    : {}.{} build {}",
+  shared->nt_major_version,
+  shared->nt_minor_version,
+  shared->nt_build_number);
+```
+
+## Additional public types
+
+The following are also publicly visible in `omni/win/kernel_user_shared_data.hpp`:
+
+- `omni::win::kernel_system_time`
+- `omni::win::nt_product_type`
+- `omni::win::alternative_arch_type`
+- `omni::win::xstate_feature`
+- `omni::win::xstate_configuration`
+
+These are useful if the user wants to read lower-level structure fields directly.

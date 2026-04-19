@@ -1,0 +1,116 @@
+---
+title: Exports
+description: Lookup, iteration, and resolution of PE module exports
+---
+
+## `omni::use_ordinal_t`
+
+A marker type for ordinal-lookup overloads.
+
+```cpp
+auto exp = omni::get_export(1, L"ntdll.dll", omni::use_ordinal);
+```
+
+## `omni::forwarder_string`
+
+A representation of a forwarded export as a pair:
+
+- `module`
+- `function`
+
+### Methods
+
+| Method | Purpose |
+| --- | --- |
+| `parse(string_view)` | parse a string of the form `module.function` |
+| `is_ordinal()` | check whether the forward points to an ordinal |
+| `to_ordinal()` | extract the ordinal |
+| `present()` | check that both parts are non-empty |
+
+## `omni::module_export`
+
+A description of a single export.
+
+### Fields
+
+- `name`
+- `address`
+- `ordinal`
+- `is_forwarded`
+- `forwarder_string`
+- `module_base`
+
+### Methods
+
+- `is_ordinal_only()`
+- `present()`
+- `operator bool()`
+
+## `omni::module_exports`
+
+API for the export table of a specific module.
+
+### Main methods
+
+| Method | Purpose |
+| --- | --- |
+| `size()` | number of exported functions |
+| `directory()` | pointer to the export directory |
+| `name(index)` | export name by function index |
+| `ordinal(index)` | ordinal by index |
+| `address(index)` | export address |
+| `is_export_forwarded(address)` | check whether an export is forwarded |
+| `all()` | range over all exports |
+| `ordinal()` | range over ordinal exports |
+| `named()` | range over named exports |
+| `find(export_name_hash)` | find by hashed name |
+| `find(ordinal, omni::use_ordinal)` | find by ordinal |
+| `find_if(predicate)` | find by predicate |
+
+### Range iteration
+
+`omni::module_exports` and its sub-ranges can be used as regular C++ ranges.
+
+```cpp
+auto kernel32 = omni::get_module(L"kernel32.dll");
+
+for (const auto& export_entry : kernel32.exports().named()) {
+  std::println("{}", export_entry.name);
+}
+```
+
+## `omni::get_export`
+
+Returns `omni::module_export` or an empty result.
+
+### Overloads
+
+- `omni::get_export(export_name_hash, omni::module module)`
+- `omni::get_export(export_name_hash, module_name_hash)`
+- `omni::get_export(export_name_hash)`
+- `omni::get_export(ordinal, omni::module module, omni::use_ordinal)`
+- `omni::get_export(ordinal, module_name_hash, omni::use_ordinal)`
+
+### Notes
+
+- if the export is forwarded, the library tries to resolve the final target automatically;
+- if the forwarder target module is not loaded, the result may remain a forwarded export without a final address.
+
+## `omni::try_get_export`
+
+Same as `get_export`, but with diagnostics via `std::expected<module_export, std::error_code>`.
+
+### Possible errors
+
+- `omni::error::module_not_loaded`
+- `omni::error::export_not_found`
+- `omni::error::forwarder_string_invalid`
+
+### Example
+
+```cpp
+auto result = omni::try_get_export("GetCurrentProcessId", L"kernel32.dll");
+if (!result) {
+  std::println("{}", result.error().message());
+}
+```

@@ -1,0 +1,93 @@
+---
+title: Modules
+description: Access to the loader list and loaded modules through omni
+---
+
+## `omni::module`
+
+A representation of a single loaded module.
+
+### Main methods
+
+| Method | Purpose |
+| --- | --- |
+| `entry()` | return a pointer to the loader entry |
+| `loader_entry()` | const access to the loader entry |
+| `image()` | return `win::image*` |
+| `base_address()` | module base address |
+| `native_handle()` | `void*` handle/base address |
+| `entry_point()` | entry point address |
+| `name()` | ANSI module name |
+| `wname()` | wide module name |
+| `system_path()` | full path to the module |
+| `exports()` | return `omni::module_exports` |
+| `present()` | validity check |
+| `matches_name_hash(hash)` | compare against a hashed module name |
+
+#### Module metadata
+
+`omni::module` gives access to the identity and PE structure of the loaded image:
+
+- `entry()` and `loader_entry()` return the loader entry;
+- `image()` returns `win::image*`;
+- `base_address()`, `native_handle()`, and `entry_point()` expose addresses;
+- `name()`, `wname()`, and `system_path()` return module naming and path data.
+
+### Example
+
+```cpp
+auto kernel32 = omni::get_module(L"kernel32.dll");
+
+if (kernel32) {
+  std::println("{}", kernel32.name());
+  std::println("{:#x}", kernel32.base_address().value());
+}
+```
+
+## `omni::modules`
+
+A process module range over the PEB loader list.
+
+### Main capabilities
+
+| Method | Purpose |
+| --- | --- |
+| `begin()`, `end()` | range iteration |
+| `skip(count)` | skip the first elements |
+| `find(module_name_hash)` | find by name |
+| `find(base_address)` | find by base address |
+| `find_if(predicate)` | find by predicate |
+| `contains(module_name_hash)` | check presence by name |
+| `contains(base_address)` | check presence by address |
+
+#### Iteration and lookup
+
+`omni::modules` behaves like a normal C++ range and fits:
+
+- full loader list iteration;
+- filtering with `std::views`;
+- looking up modules by name, base address, or arbitrary predicate.
+
+### Example
+
+```cpp
+omni::modules loaded_modules{};
+
+for (const auto& module : loaded_modules) {
+  std::println("{}", module.name());
+}
+```
+
+## `omni::get_module`
+
+Convenience overloads for getting a module:
+
+- `omni::get_module(module_name_hash)`
+- `omni::get_module(default_hash)`
+- `omni::get_module(omni::address base_address)`
+
+If the module is not found, an empty `omni::module` is returned.
+
+## Module naming
+
+`matches_name_hash()` and `get_module()` handle both the full name (`kernel32.dll`) and the name without the `.dll` suffix (`kernel32`), if the module really has a DLL suffix.

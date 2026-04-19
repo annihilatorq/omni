@@ -1,0 +1,15 @@
+{
+  "title": "omni Documentation",
+  "pages": [
+    "index",
+    "quick-start",
+    "utilities",
+    "status",
+    "modules",
+    "exports",
+    "lazy-import",
+    "syscalls",
+    "shared-user-data",
+    "allocator"
+  ]
+}

@@ -1,0 +1,85 @@
+---
+title: Status
+description: NTSTATUS типы и вспомогательные проверки в omni
+---
+
+## Перечисления
+
+### `omni::severity`
+
+Классификация результата:
+
+- `success`
+- `information`
+- `warning`
+- `error`
+
+### `omni::facility`
+
+Группа/подсистема статуса NT. В API доступны значения вроде:
+
+- `rpc_runtime`
+- `io_error_code`
+- `ntwin32`
+- `graphics_kernel`
+- `hypervisor`
+- `security_core`
+
+### `omni::ntstatus`
+
+Набор часто используемых NTSTATUS-констант, включая:
+
+- `success`
+- `pending`
+- `timeout`
+- `buffer_overflow`
+- `invalid_parameter`
+- `access_denied`
+- `access_violation`
+- `no_memory`
+- `object_name_not_found`
+- `procedure_not_found`
+- `dll_not_found`
+
+## `omni::status`
+
+Обёртка над `NTSTATUS`.
+
+### Поле
+
+- `value` — raw `std::int32_t`
+
+### Основные операции
+
+| API | Назначение |
+| --- | --- |
+| `operator=(std::int32_t)` | присвоить сырое значение |
+| `operator=(omni::ntstatus)` | присвоить из перечисления |
+| `is_success()` | `value >= 0` |
+| `is_information()` | проверка information severity |
+| `is_warning()` | проверка warning severity |
+| `is_error()` | проверка error severity |
+| `severity()` | вернуть `omni::severity` |
+| `facility()` | вернуть `omni::facility` |
+| `code()` | вернуть low 16-bit code |
+
+### Приведения и сравнения
+
+- сравнение с `std::int32_t`;
+- сравнение с `omni::ntstatus`;
+- `operator bool()` — true, если статус успешный;
+- `operator std::int32_t()`.
+
+### Пример
+
+```cpp
+omni::status result = omni::ntstatus::success;
+
+if (result.is_success()) {
+  // ok
+}
+
+if (result == omni::ntstatus::success) {
+  // exact match
+}
+```

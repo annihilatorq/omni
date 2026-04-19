@@ -1,0 +1,80 @@
+---
+title: Quick Start
+description: Quick start with omni and an overview of the main usage scenarios
+---
+
+## Integration
+
+`omni` is a header-only library. It is enough to add the project directory in CMake and link the `omni::omni` target.
+
+```cmake
+add_subdirectory(path/to/omni)
+target_link_libraries(your_target PRIVATE omni::omni)
+```
+
+## Requirements
+
+- Windows
+- CMake 3.21+
+- C++23 compiler
+
+## Minimal example
+
+```cpp
+#include <Windows.h>
+
+#include "omni/modules.hpp"
+#include "omni/syscall.hpp"
+
+#include <cstdint>
+#include <print>
+
+int main() {
+  auto kernel32 = omni::get_module(L"kernel32.dll");
+  auto yield_status = omni::syscall("NtYieldExecution");
+
+  std::println("module  : {}", kernel32.name());
+  std::println("exports : {}", kernel32.exports().size());
+  std::println("yield   : 0x{:08X}", static_cast<std::uint32_t>(yield_status.value));
+}
+```
+
+## API areas
+
+| Section | Main entities |
+| --- | --- |
+| Utilities | `omni::address`, `omni::fnv1a32`, `omni::fnv1a64`, `omni::default_hash`, `omni::error` |
+| Status | `omni::status`, `omni::severity`, `omni::facility`, `omni::ntstatus` |
+| Modules | `omni::module`, `omni::modules`, `omni::get_module` |
+| Exports | `omni::module_export`, `omni::module_exports`, `omni::get_export`, `omni::try_get_export` |
+| Lazy Import | `omni::lazy_importer`, `omni::lazy_import` |
+| Syscalls | `omni::syscaller`, `omni::syscall` |
+| Shared Data | `omni::shared_user_data`, `omni::win::kernel_user_shared_data` |
+| Memory | `omni::nt_allocator`, `omni::rw_allocator`, `omni::rx_allocator`, `omni::rwx_allocator` |
+
+## Configuration
+
+Compile-time switches are supported:
+
+| Macro | Effect |
+| --- | --- |
+| `OMNI_DISABLE_CACHING` | disables the internal cache for lazy import and syscall IDs |
+| `OMNI_ENABLE_ERROR_STRINGS` | keeps string error descriptions in non-debug builds |
+| `OMNI_DISABLE_ERROR_STRINGS` | removes string error descriptions even in debug builds |
+
+## Extensibility
+
+The public `omni` API is not limited to a single usage style. The main extension points are:
+
+- a custom hash type instead of `omni::default_hash`;
+- typed and compile-time overloads in `lazy_import` and `syscall`;
+- allocator policy customization through `AllocFlags` and `Protect`;
+- compile-time feature toggles via macros.
+
+If you want the full picture, see `Utilities`, where hash policy replacement and related customization points are documented explicitly.
+
+## Limitations
+
+- the library is Windows-oriented;
+- the `syscall` API is intended for x64;
+- string literals in hash-aware overloads can be converted to hash types at compile time.

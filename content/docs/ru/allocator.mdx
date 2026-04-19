@@ -1,0 +1,67 @@
+---
+title: Allocator
+description: Аллокатор памяти на базе NtAllocateVirtualMemory и NtFreeVirtualMemory
+---
+
+## Пространство имён `omni::mem`
+
+Константы allocation type:
+
+- `commit`
+- `reserve`
+- `commit_reserve`
+- `large_commit`
+- `release`
+
+## Пространство имён `omni::mem::page`
+
+Константы page protection:
+
+- `no_access`
+- `read_only`
+- `read_write`
+- `execute`
+- `execute_read`
+- `execute_read_write`
+- `guard`
+- `no_cache`
+- `write_combine`
+
+## `omni::nt_allocator<T, AllocFlags, Protect>`
+
+Allocator, использующий:
+
+- `NtAllocateVirtualMemory`
+- `NtFreeVirtualMemory`
+
+### Основные методы
+
+| Метод | Назначение |
+| --- | --- |
+| `allocate(n)` | выделить память под `n` элементов |
+| `allocate(address, n)` | попытаться выделить память по конкретному адресу |
+| `deallocate(ptr, n)` | освободить память |
+
+### Поведение при ошибке
+
+- если включены исключения, `allocate()` бросает `std::bad_alloc`;
+- иначе выполнение аварийно завершается через `std::abort()`.
+
+## Алиасы
+
+- `omni::rw_allocator<T>` — read/write
+- `omni::rx_allocator<T>` — execute/read
+- `omni::rwx_allocator<T>` — execute/read/write
+
+## Пример
+
+```cpp
+std::vector<std::byte, omni::rw_allocator<std::byte>> buffer;
+buffer.resize(4096);
+```
+
+## Замечания
+
+- allocator зависит от корректного разрешения экспортов `NtAllocateVirtualMemory` и `NtFreeVirtualMemory`;
+- при неудачном разрешении этих экспортов аллокация не сможет выполниться;
+- API ориентирован на Windows-specific memory management сценарии.
