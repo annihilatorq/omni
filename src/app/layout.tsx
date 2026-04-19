@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://receiver.github.io/omni-docs/omni-site/'),
+  metadataBase: new URL('https://receiver1.github.io/omni-docs/'),
   title: {
     default: 'omni API Reference',
     template: '%s | omni API Reference',
