@@ -1,4 +1,4 @@
-name: Windows MSVC
+name: Windows Clang-cl
 
 on:
   push:
