@@ -52,9 +52,9 @@ jobs:
             -clang-tidy-binary clang-tidy `
             -p build `
             -j 0 `
+            -extra-arg-before=--driver-mode=cl `
             -checks=-clang-analyzer-* `
-            -source-filter '.*[\\/](src|tests|examples)[\\/].*' `
+            -source-filter '.*[\\/](tests|examples)[\\/].*' `
             -header-filter '.*[\\/](include|tests|examples)[\\/].*' `
             -exclude-header-filter '.*[\\/]build[\\/]_deps[\\/].*' `
-            -extra-arg=/std:c++23 `
             -allow-no-checks
