@@ -139,34 +139,50 @@ namespace omni {
   };
 
   template <typename T, typename... Params>
-  class lazy_importer<T (*)(Params...)> {
+  class lazy_importer<T (*)(Params...)> : private lazy_importer<T> {
    public:
-    explicit lazy_importer(concepts::hash auto export_name): lazy_importer_(export_name) {}
-    explicit lazy_importer(default_hash export_name): lazy_importer_(export_name) {}
-
-    template <concepts::hash Hasher>
-    explicit lazy_importer(Hasher export_name, Hasher module_name): lazy_importer_(export_name, module_name) {}
-    explicit lazy_importer(default_hash export_name, default_hash module_name): lazy_importer_(export_name, module_name) {}
+    using lazy_importer<T>::lazy_importer;
 
     std::expected<T, std::error_code> try_invoke(Params... args) {
-      return lazy_importer_.try_invoke(args...);
+      return lazy_importer<T>::try_invoke(args...);
     }
 
     T invoke(Params... args) {
-      return lazy_importer_.invoke(args...);
+      return lazy_importer<T>::invoke(args...);
     }
 
     T operator()(Params... args) {
-      return lazy_importer_(args...);
+      return lazy_importer<T>::invoke(args...);
     }
 
     [[nodiscard]] omni::module_export module_export() const noexcept {
-      return lazy_importer_.module_export();
+      return lazy_importer<T>::module_export();
+    }
+  };
+
+#if defined(_M_IX86)
+  template <typename T, typename... Params>
+  class lazy_importer<T(__stdcall*)(Params...)> : private lazy_importer<T> {
+   public:
+    using lazy_importer<T>::lazy_importer;
+
+    std::expected<T, std::error_code> try_invoke(Params... args) {
+      return lazy_importer<T>::try_invoke(args...);
     }
 
-   private:
-    lazy_importer<T> lazy_importer_;
+    T invoke(Params... args) {
+      return lazy_importer<T>::invoke(args...);
+    }
+
+    T operator()(Params... args) {
+      return lazy_importer<T>::invoke(args...);
+    }
+
+    [[nodiscard]] omni::module_export module_export() const noexcept {
+      return lazy_importer<T>::module_export();
+    }
   };
+#endif
 
   template <typename T = void, concepts::hash Hasher, typename... Args>
   inline T lazy_import(Hasher export_name, Args&&... args) {

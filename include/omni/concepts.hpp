@@ -12,12 +12,9 @@ namespace omni::concepts {
   template <typename T> concept nullpointer = std::is_null_pointer_v<T>;
 
   template <typename T>
-  struct is_function_pointer : std::false_type {};
-
-  template <typename T, typename... Args>
-  struct is_function_pointer<T (*)(Args...)> : std::true_type {};
-
-  template <typename T> concept function_pointer = is_function_pointer<std::remove_cvref_t<T>>::value;
+  concept function_pointer =
+    std::is_pointer_v<std::remove_cvref_t<T>> &&
+    std::is_function_v<std::remove_pointer_t<std::remove_cvref_t<T>>>;
 
   template <typename T>
   concept hashable = requires(T t) {
