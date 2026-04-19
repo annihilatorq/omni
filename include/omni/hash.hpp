@@ -29,6 +29,32 @@ namespace omni {
     return T{}(object);
   }
 
+  namespace literals {
+    consteval omni::fnv1a32 operator""_fnv1a32(const char* str, std::size_t len) noexcept {
+      return {std::string_view{str, len}};
+    }
+
+    consteval omni::fnv1a64 operator""_fnv1a64(const char* str, std::size_t len) noexcept {
+      return {std::string_view{str, len}};
+    }
+
+    consteval omni::default_hash operator""_hash(const char* str, std::size_t len) noexcept {
+      return {std::string_view{str, len}};
+    }
+
+    consteval omni::fnv1a32 operator""_fnv1a32(const wchar_t* str, std::size_t len) noexcept {
+      return {std::wstring_view{str, len}};
+    }
+
+    consteval omni::fnv1a64 operator""_fnv1a64(const wchar_t* str, std::size_t len) noexcept {
+      return {std::wstring_view{str, len}};
+    }
+
+    consteval omni::default_hash operator""_hash(const wchar_t* str, std::size_t len) noexcept {
+      return {std::wstring_view{str, len}};
+    }
+  } // namespace literals
+
 } // namespace omni
 
 template <>
