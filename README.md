@@ -221,5 +221,6 @@ Tests use [`boost.ut`](https://github.com/boost-ext/ut). If it is not already av
 - `syscall` examples assume an x64 Windows process.
 - String literals passed to hash-aware APIs can be converted at compile time through implicit hash constructors.
 - The project is still evolving, so API refinements are expected while the library surface settles.
+- Third-party notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Thanks to `receiver1`, `po0p`, and invers1on for the contributions, ideas, and help around the project.
