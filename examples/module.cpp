@@ -45,7 +45,8 @@ int main() {
   std::println();
   std::println("First five named exports from kernel32:");
 
-  auto first_named_exports = kernel32.exports().named() | std::views::transform(name_of_export) | std::views::take(5);
+  auto kernel32_exports = kernel32.exports();
+  auto first_named_exports = kernel32_exports.named() | std::views::transform(name_of_export) | std::views::take(5);
   for (std::string_view export_name : first_named_exports) {
     std::println("  {}", export_name);
   }
