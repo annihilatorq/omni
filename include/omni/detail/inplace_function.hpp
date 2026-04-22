@@ -117,7 +117,7 @@ namespace omni::detail {
     }
 
     template <typename... CallArgs>
-    T invoke(CallArgs&&... args) const {
+    [[nodiscard]] T invoke(CallArgs&&... args) const {
       if (invoker_ == nullptr) {
 #ifdef OMNI_HAS_EXCEPTIONS
         throw std::bad_function_call();
