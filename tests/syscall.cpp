@@ -17,6 +17,7 @@ namespace {
   };
 
   using nt_query_information_process_fn = omni::status (*)(HANDLE, ULONG, void*, ULONG, ULONG*);
+  using syscall_id_parser_result = std::expected<std::uint32_t, std::error_code>;
 
 } // namespace
 
@@ -39,6 +40,90 @@ ut::suite<"omni::syscall"> syscall_suite = [] {
     expect(fatal(rtl_get_version != nullptr));
     expect(not result.has_value());
     expect(result.error() == make_error_code(omni::error::syscall_id_not_found));
+  };
+
+  "custom parsers receive the export address and can delegate to the default parser"_test = [] {
+    HMODULE ntdll_handle = ::GetModuleHandleW(L"ntdll.dll");
+    FARPROC direct_function = ::GetProcAddress(ntdll_handle, "NtQueryInformationProcess");
+    omni::default_hash syscall_name{"NtQueryInformationProcess"};
+
+#ifdef OMNI_HAS_CACHING
+    omni::detail::syscall_id_cache.clear();
+#endif
+
+    int parser_calls{};
+    omni::address parsed_address{};
+    auto parser = [&parser_calls, &parsed_address](const omni::module_export& mod_export) -> syscall_id_parser_result {
+      ++parser_calls;
+      parsed_address = mod_export.address;
+      return omni::default_syscall_id_parser(mod_export);
+    };
+
+    omni::syscaller<omni::status> caller{syscall_name, parser};
+
+    process_basic_information syscall_info{};
+    ULONG syscall_return_length{};
+    auto syscall_status =
+      caller.try_invoke(::GetCurrentProcess(), 0U, &syscall_info, sizeof(syscall_info), &syscall_return_length);
+
+    expect(fatal(ntdll_handle != nullptr));
+    expect(fatal(direct_function != nullptr));
+    expect(parser_calls == 1);
+    expect(parsed_address == direct_function);
+    expect(syscall_status.has_value());
+    expect(syscall_status->is_success());
+    expect(syscall_return_length == sizeof(syscall_info));
+    expect(syscall_info.peb_base_address != nullptr);
+    expect(static_cast<DWORD>(syscall_info.unique_process_id) == ::GetCurrentProcessId());
+
+#ifdef OMNI_HAS_CACHING
+    expect(omni::detail::syscall_id_cache.contains(syscall_name.value()));
+
+    omni::syscaller<omni::status> cached_caller{syscall_name, parser};
+    auto cached_status =
+      cached_caller.try_invoke(::GetCurrentProcess(), 0U, &syscall_info, sizeof(syscall_info), &syscall_return_length);
+
+    expect(parser_calls == 1);
+    expect(cached_status.has_value());
+    expect(cached_status->is_success());
+
+    omni::detail::syscall_id_cache.clear();
+#endif
+  };
+
+  "custom parser errors are propagated by syscaller"_test = [] {
+    omni::default_hash syscall_name{"NtQueryInformationProcess"};
+
+#ifdef OMNI_HAS_CACHING
+    omni::detail::syscall_id_cache.clear();
+#endif
+
+    int parser_calls{};
+    omni::address parsed_address{};
+    auto parser = [&parser_calls, &parsed_address](const omni::module_export& mod_export) -> syscall_id_parser_result {
+      ++parser_calls;
+      parsed_address = mod_export.address;
+      return std::unexpected(make_error_code(omni::error::syscall_id_not_found));
+    };
+
+    omni::syscaller<omni::status> caller{syscall_name, parser};
+    auto result = caller.try_invoke();
+
+    expect(parser_calls == 1);
+    expect(parsed_address != nullptr);
+    expect(not result.has_value());
+    expect(result.error() == make_error_code(omni::error::syscall_id_not_found));
+
+#ifdef OMNI_HAS_CACHING
+    expect(not omni::detail::syscall_id_cache.contains(syscall_name.value()));
+
+    omni::syscaller<omni::status> second_caller{syscall_name, parser};
+    auto second_result = second_caller.try_invoke();
+
+    expect(parser_calls == 2);
+    expect(not second_result.has_value());
+    expect(second_result.error() == make_error_code(omni::error::syscall_id_not_found));
+#endif
   };
 
   "generic syscaller matches NtQueryInformationProcess from ntdll"_test = [] {

@@ -4,14 +4,16 @@
 #include <system_error>
 #include <utility>
 
+#include "omni/address.hpp"
 #include "omni/concepts.hpp"
 #include "omni/detail/config.hpp"
 #include "omni/detail/extract_function_name.hpp"
+#include "omni/detail/inplace_function.hpp"
 #include "omni/detail/memory_cache.hpp"
 #include "omni/detail/normalize_pointer_argument.hpp"
 #include "omni/detail/shellcode.hpp"
-#include "omni/error.hpp"
 #include "omni/hash.hpp"
+#include "omni/module_export.hpp"
 #include "omni/status.hpp"
 
 namespace omni {
@@ -23,17 +25,37 @@ namespace omni {
 #endif
   } // namespace detail
 
+  // Syscall ID is at an offset of 4 bytes from the specified address.
+  // Not considering the situation when EDR hook is installed
+  // Learn more here: https://github.com/annihilatorq/shadow_syscall/issues/1
+  inline std::expected<std::uint32_t, std::error_code> default_syscall_id_parser(const omni::module_export& module_export) {
+    auto* address = module_export.address.ptr<std::uint8_t>();
+
+    for (std::size_t i{}; i < 24; ++i) {
+      if (address[i] == 0x4c && address[i + 1] == 0x8b && address[i + 2] == 0xd1 && address[i + 3] == 0xb8 &&
+          address[i + 6] == 0x00 && address[i + 7] == 0x00) {
+        return *reinterpret_cast<std::uint32_t*>(&address[i + 4]);
+      }
+    }
+
+    return std::unexpected(omni::error::syscall_id_not_found);
+  }
+
   template <typename T = omni::status>
     requires(omni::detail::is_x64)
   class syscaller {
    public:
-    explicit syscaller(concepts::hash auto export_name): syscall_id_(resolve_syscall_id(export_name)) {
+    using syscall_id_parser = detail::inplace_function<std::expected<std::uint32_t, std::error_code>(omni::module_export)>;
+
+    explicit syscaller(concepts::hash auto export_name, syscall_id_parser parser = default_syscall_id_parser)
+      : syscall_id_parser_(std::move(parser)), syscall_id_(resolve_syscall_id(export_name)) {
       if (syscall_id_) {
         setup_shellcode(*syscall_id_);
       }
     }
 
-    explicit syscaller(default_hash export_name): syscall_id_(resolve_syscall_id(export_name)) {
+    explicit syscaller(default_hash export_name, syscall_id_parser parser = default_syscall_id_parser)
+      : syscall_id_parser_(std::move(parser)), syscall_id_(resolve_syscall_id(export_name)) {
       if (syscall_id_) {
         setup_shellcode(*syscall_id_);
       }
@@ -72,23 +94,7 @@ namespace omni {
       shellcode_.setup();
     }
 
-    // Syscall ID is at an offset of 4 bytes from the specified address.
-    // Not considering the situation when EDR hook is installed
-    // Learn more here: https://github.com/annihilatorq/shadow_syscall/issues/1
-    static std::optional<std::uint32_t> default_syscall_id_parser(omni::address export_address) {
-      auto* address = export_address.ptr<std::uint8_t>();
-
-      for (std::size_t i{}; i < 24; ++i) {
-        if (address[i] == 0x4c && address[i + 1] == 0x8b && address[i + 2] == 0xd1 && address[i + 3] == 0xb8 &&
-            address[i + 6] == 0x00 && address[i + 7] == 0x00) {
-          return *reinterpret_cast<std::uint32_t*>(&address[i + 4]);
-        }
-      }
-
-      return std::nullopt;
-    }
-
-    static std::expected<std::uint32_t, std::error_code> resolve_syscall_id(concepts::hash auto export_name) {
+    std::expected<std::uint32_t, std::error_code> resolve_syscall_id(concepts::hash auto export_name) {
 #ifdef OMNI_HAS_CACHING
       auto cached_syscall_id = detail::syscall_id_cache.try_get(export_name.value());
       if (cached_syscall_id.has_value()) {
@@ -101,9 +107,9 @@ namespace omni {
         return std::unexpected(module_export.error());
       }
 
-      auto parsed_syscall_id = default_syscall_id_parser(module_export->address);
+      auto parsed_syscall_id = syscall_id_parser_(*module_export);
       if (!parsed_syscall_id) {
-        return std::unexpected(omni::error::syscall_id_not_found);
+        return std::unexpected(parsed_syscall_id.error());
       }
 
 #ifdef OMNI_HAS_CACHING
@@ -113,12 +119,7 @@ namespace omni {
       return *parsed_syscall_id;
     }
 
-    // We cannot store the hash of the export name as a class member because,
-    // in C++23, we cannot preserve the hash type (without RTTI) when passing
-    // it to the constructor, and requiring the caller to pass its own hash
-    // when instantiating 'omni::syscaller' would be very inconvenient, so
-    // we will compute the export and its syscall ID during the constructor
-    // phase and store the result until the syscall is called
+    syscall_id_parser syscall_id_parser_;
     std::expected<std::uint32_t, std::error_code> syscall_id_;
 
     detail::shellcode<13> shellcode_{{0x49, 0x89, 0xCA, 0x48, 0xC7, 0xC0, 0x3F, 0x10, 0x00, 0x00, 0x0F, 0x05, 0xC3}};
@@ -126,25 +127,21 @@ namespace omni {
 
   template <typename T, typename... Params>
     requires(omni::detail::is_x64)
-  class syscaller<T (*)(Params...)> {
+  class syscaller<T (*)(Params...)> : public syscaller<T> {
    public:
-    explicit syscaller(concepts::hash auto export_name): syscaller_(export_name) {}
-    explicit syscaller(default_hash export_name): syscaller_(export_name) {}
+    using syscaller<T>::syscaller;
 
     std::expected<T, std::error_code> try_invoke(Params... args) {
-      return syscaller_.try_invoke(args...);
+      return syscaller<T>::try_invoke(args...);
     }
 
     T invoke(Params... args) {
-      return syscaller_.invoke(args...);
+      return syscaller<T>::invoke(args...);
     }
 
     T operator()(Params... args) {
-      return syscaller_(args...);
+      return syscaller<T>::invoke(args...);
     }
-
-   private:
-    syscaller<T> syscaller_;
   };
 
   template <typename T = omni::status, concepts::hash Hasher, typename... Args>
