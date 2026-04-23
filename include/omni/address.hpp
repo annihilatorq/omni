@@ -31,8 +31,20 @@ namespace omni {
 
     address(const address&) = default;
     address(address&&) = default;
+
     address& operator=(const address&) = default;
     address& operator=(address&&) = default;
+
+    address& operator=(std::nullptr_t) {
+      address_ = 0;
+      return *this;
+    }
+
+    address& operator=(concepts::pointer auto ptr) {
+      address_ = reinterpret_cast<value_type>(ptr);
+      return *this;
+    }
+
     ~address() = default;
 
     template <typename T = void, typename PointerT = std::add_pointer_t<T>>
