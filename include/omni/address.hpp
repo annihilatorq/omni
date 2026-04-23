@@ -19,9 +19,15 @@ namespace omni {
 
     constexpr address() = default;
 
-    // This way, we create a perfect-match ctor, eliminating any ambiguity for
-    // the compiler when choosing between the pointer and nullptr for the ctor
-    // (since compiler is allowed to perform one user-defined conversion)
+    // This is necessary to avoid ambiguity between `std::nullptr_t` and any
+    // integer types other than `std::uintptr_t`. To convert `int` (0 & NULL)
+    // to `uintptr_t`, the compiler needs a single conversion. In the case of
+    // std::nullptr_t, the compiler also needs a single conversion to turn int
+    // into std::nullptr_t. In both cases, a single conversion is required, none
+    // of the standard conversion sequences is shorter than the other -> ambiguity.
+    // This ambiguity could be avoided by requiring all library users to pass
+    // specifically uintptr_t (x64 - 0ULL, x86 - 0UL), which would create a
+    // perfect-match function signature, but would be pretty inconvenient.
     constexpr explicit address(concepts::nullpointer auto) noexcept {}
 
     constexpr explicit(false) address(value_type address) noexcept: address_(address) {}
