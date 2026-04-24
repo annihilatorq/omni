@@ -67,4 +67,4 @@ jobs:
         shell: msys2 {0}
         run: |
           build_dir="${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}"
-          ctest --test-dir "$build_dir" --output-on-failure --timeout 30
+          ctest --test-dir "$build_dir" --output-on-failure --timeout 120

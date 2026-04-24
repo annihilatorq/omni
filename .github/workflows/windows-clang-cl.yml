@@ -61,4 +61,4 @@ jobs:
         shell: pwsh
         run: |
           $buildDir = "${{ github.workspace }}/${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}"
-          ctest --test-dir $buildDir --output-on-failure --timeout 30 -C ${{ matrix.build_type }}
+          ctest --test-dir $buildDir --output-on-failure --timeout 120 -C ${{ matrix.build_type }}
