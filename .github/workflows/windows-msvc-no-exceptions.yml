@@ -1,0 +1,44 @@
+name: Windows MSVC Without Exceptions
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/**"]
+  pull_request:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/**"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & Test (x64, Release)
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          $buildDir = "${{ github.workspace }}/x64-Release-no-exceptions"
+          cmake -S "${{ github.workspace }}" -B $buildDir `
+            -G "Visual Studio 18 2026" `
+            -A x64 `
+            -DCMAKE_CXX_STANDARD=23 `
+            -DCMAKE_CXX_STANDARD_REQUIRED=ON `
+            -DCMAKE_CXX_EXTENSIONS=OFF `
+            -DOMNI_DISABLE_EXCEPTIONS=ON `
+            -DCMAKE_CXX_FLAGS_DEBUG="/bigobj"
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $buildDir = "${{ github.workspace }}/x64-Release-no-exceptions"
+          cmake --build $buildDir --config Release --parallel
+
+      - name: Test
+        shell: pwsh
+        run: |
+          $buildDir = "${{ github.workspace }}/x64-Release-no-exceptions"
+          ctest --test-dir $buildDir --output-on-failure --timeout 120 -C Release
