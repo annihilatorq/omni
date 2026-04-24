@@ -62,26 +62,26 @@ namespace omni {
     [[nodiscard]] pointer allocate(std::size_t n) {
       std::size_t size = n * sizeof(T);
       void* ptr = virtual_alloc(nullptr, size, flags_, protect_);
-#ifdef OMNI_HAS_EXCEPTIONS
       if (ptr == nullptr) {
+#ifdef OMNI_HAS_EXCEPTIONS
         throw std::bad_alloc();
-      }
 #else
-      std::abort();
+        std::abort();
 #endif
+      }
       return static_cast<T*>(ptr);
     }
 
     [[nodiscard]] pointer allocate(omni::address address, std::size_t n) {
       std::size_t size = n * sizeof(T);
       void* ptr = virtual_alloc(address.ptr(), size, flags_, protect_);
-#ifdef OMNI_HAS_EXCEPTIONS
       if (ptr == nullptr) {
+#ifdef OMNI_HAS_EXCEPTIONS
         throw std::bad_alloc();
-      }
 #else
-      std::abort();
+        std::abort();
 #endif
+      }
       return static_cast<T*>(ptr);
     }
 
