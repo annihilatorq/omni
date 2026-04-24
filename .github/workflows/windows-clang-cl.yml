@@ -23,10 +23,10 @@ jobs:
         exceptions:
           - name: Exceptions
             build_dir_suffix: exceptions
-            cxx_flags: /EHsc
+            disable_exceptions: OFF
           - name: No Exceptions
             build_dir_suffix: no-exceptions
-            cxx_flags: /EHs-c- /D_HAS_EXCEPTIONS=0
+            disable_exceptions: ON
         arch:
           - name: x64
             cmake_arch: x64
@@ -56,7 +56,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=${{ matrix.std }} `
             -DCMAKE_CXX_STANDARD_REQUIRED=ON `
             -DCMAKE_CXX_EXTENSIONS=OFF `
-            -DCMAKE_CXX_FLAGS="${{ matrix.exceptions.cxx_flags }}" `
+            -DOMNI_DISABLE_EXCEPTIONS=${{ matrix.exceptions.disable_exceptions }} `
             -DCMAKE_CXX_FLAGS_DEBUG="/bigobj"
 
       - name: Build
