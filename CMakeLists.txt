@@ -22,6 +22,17 @@ add_library(omni::omni ALIAS omni)
 target_include_directories(omni INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(omni INTERFACE cxx_std_23)
 
+if(OMNI_DISABLE_EXCEPTIONS)
+  target_compile_definitions(omni INTERFACE OMNI_DISABLE_EXCEPTIONS)
+
+  if(MSVC)
+    target_compile_options(omni INTERFACE /EHs-c-)
+    target_compile_definitions(omni INTERFACE _HAS_EXCEPTIONS=0)
+  else()
+    target_compile_options(omni INTERFACE -fno-exceptions)
+  endif()
+endif()
+
 if(OMNI_BUILD_EXAMPLES)
 	add_subdirectory(examples)
 endif()

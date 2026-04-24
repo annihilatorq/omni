@@ -18,7 +18,7 @@
 #  define OMNI_ARCH_X86
 #endif
 
-#if defined(__cpp_exceptions) || defined(_CPPUNWIND)
+#if !defined(OMNI_DISABLE_EXCEPTIONS) || defined(__cpp_exceptions) || defined(_CPPUNWIND)
 #  define OMNI_HAS_EXCEPTIONS
 #endif
 
