@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    name: Build & Test (${{ matrix.arch.name }}, ${{ matrix.build_type }})
+    name: Build & Test (${{ matrix.arch.name }}, ${{ matrix.build_type }}, ${{ matrix.exceptions.name }})
     runs-on: windows-2025-vs2026
     timeout-minutes: 60
 
@@ -20,6 +20,13 @@ jobs:
       matrix:
         build_type: [Debug, Release]
         std: [23]
+        exceptions:
+          - name: Exceptions
+            build_dir_suffix: exceptions
+            cxx_flags: /EHsc
+          - name: No Exceptions
+            build_dir_suffix: no-exceptions
+            cxx_flags: /EHs-c- /D_HAS_EXCEPTIONS=0
         arch:
           - name: x64
             cmake_arch: x64
@@ -34,23 +41,24 @@ jobs:
       - name: Configure CMake
         shell: pwsh
         run: |
-          $buildDir = "${{ github.workspace }}/${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}"
+          $buildDir = "${{ github.workspace }}/${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}-${{ matrix.exceptions.build_dir_suffix }}"
           cmake -S "${{ github.workspace }}" -B $buildDir `
             -G "Visual Studio 18 2026" `
             -A "${{ matrix.arch.cmake_arch }}" `
             -DCMAKE_CXX_STANDARD=${{ matrix.std }} `
             -DCMAKE_CXX_STANDARD_REQUIRED=ON `
             -DCMAKE_CXX_EXTENSIONS=OFF `
+            -DCMAKE_CXX_FLAGS="${{ matrix.exceptions.cxx_flags }}" `
             -DCMAKE_CXX_FLAGS_DEBUG="/bigobj"
 
       - name: Build
         shell: pwsh
         run: |
-          $buildDir = "${{ github.workspace }}/${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}"
+          $buildDir = "${{ github.workspace }}/${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}-${{ matrix.exceptions.build_dir_suffix }}"
           cmake --build $buildDir --config ${{ matrix.build_type }} --parallel
 
       - name: Test
         shell: pwsh
         run: |
-          $buildDir = "${{ github.workspace }}/${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}"
+          $buildDir = "${{ github.workspace }}/${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}-${{ matrix.exceptions.build_dir_suffix }}"
           ctest --test-dir $buildDir --output-on-failure --timeout 30 -C ${{ matrix.build_type }}
