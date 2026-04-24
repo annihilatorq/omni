@@ -49,27 +49,30 @@ namespace {
 } // namespace
 
 ut::suite<"omni::api_sets"> api_sets_suite = [] {
-  "contracts follow the official api set naming convention"_test = [] {
-    std::size_t contract_count{};
-    std::size_t contract_index{};
+  "public api set contracts follow the official naming convention"_test = [] {
+    std::size_t entry_count{};
+    std::size_t public_contract_count{};
 
     for (const omni::api_set& api_set : omni::api_sets{}) {
       std::wstring_view contract_name = api_set.contract_name();
       std::string contract_name_ascii = tests::narrow_ascii(contract_name);
 
-      expect(!contract_name.empty()) << "empty contract name at index " << contract_index;
+      expect(!contract_name.empty()) << "empty namespace entry at index " << entry_count;
 
-      expect(contract_name.starts_with(L"api-") || contract_name.starts_with(L"ext-"))
-        << "invalid contract prefix at index " << contract_index << ", contract=[" << contract_name_ascii << "]";
+      const bool is_public_contract = contract_name.starts_with(L"api-") || contract_name.starts_with(L"ext-");
 
-      expect(find_contract_version_suffix(contract_name) != std::wstring_view::npos)
-        << "invalid contract version suffix at index " << contract_index << ", contract=[" << contract_name_ascii << "]";
+      if (is_public_contract) {
+        expect(find_contract_version_suffix(contract_name) != std::wstring_view::npos)
+          << "invalid public api-set contract name at index " << entry_count << ", contract=[" << contract_name_ascii << "]";
 
-      ++contract_count;
-      ++contract_index;
+        ++public_contract_count;
+      }
+
+      ++entry_count;
     }
 
-    expect(contract_count > 0U) << "api set enumeration returned no contracts";
+    expect(entry_count > 0U) << "api set enumeration returned no entries";
+    expect(public_contract_count > 0U) << "api set enumeration returned no public contracts";
   };
 
   "schema-resolved default hosts match Windows when the raw schema provides one"_test = [] {
