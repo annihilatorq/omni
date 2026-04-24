@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    name: Build & Test (${{ matrix.arch.name }}, ${{ matrix.build_type }})
+    name: Build & Test (${{ matrix.arch.name }}, ${{ matrix.build_type }}, ${{ matrix.exceptions.name }})
     runs-on: windows-2025-vs2026
     timeout-minutes: 60
 
@@ -20,6 +20,13 @@ jobs:
       matrix:
         build_type: [Debug, Release]
         std: [23]
+        exceptions:
+          - name: Exceptions
+            build_dir_suffix: exceptions
+            disable_exceptions: OFF
+          - name: No Exceptions
+            build_dir_suffix: no-exceptions
+            disable_exceptions: ON
         arch:
           - name: x64
             msystem: UCRT64
@@ -46,7 +53,7 @@ jobs:
       - name: Configure CMake
         shell: msys2 {0}
         run: |
-          build_dir="${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}"
+          build_dir="${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}-${{ matrix.exceptions.build_dir_suffix }}"
           cmake -S . -B "$build_dir" \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
@@ -55,16 +62,17 @@ jobs:
             -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
             -DCMAKE_CXX_STANDARD_REQUIRED=ON \
             -DCMAKE_CXX_EXTENSIONS=OFF \
+            -DOMNI_DISABLE_EXCEPTIONS=${{ matrix.exceptions.disable_exceptions }} \
             -DCMAKE_CXX_FLAGS_DEBUG="-Wa,-mbig-obj"
 
       - name: Build
         shell: msys2 {0}
         run: |
-          build_dir="${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}"
+          build_dir="${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}-${{ matrix.exceptions.build_dir_suffix }}"
           cmake --build "$build_dir" --parallel
 
       - name: Test
         shell: msys2 {0}
         run: |
-          build_dir="${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}"
+          build_dir="${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}-${{ matrix.exceptions.build_dir_suffix }}"
           ctest --test-dir "$build_dir" --output-on-failure --timeout 120
