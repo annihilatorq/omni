@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "omni/error.hpp"
 #include "omni/syscall.hpp"
 #include "test_utils.hpp"
 

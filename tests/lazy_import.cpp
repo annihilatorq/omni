@@ -5,6 +5,7 @@
 
 #include "omni/lazy_import.hpp"
 
+#include "omni/module_export.hpp"
 #include "test_utils.hpp"
 
 namespace tests = omni::tests;
@@ -69,19 +70,20 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     omni::fnv1a32 module_name{"kernel32.dll"};
     omni::lazy_importer<HMODULE> importer{export_name, module_name};
     auto result = importer.try_invoke(L"kernel32.dll");
-    auto expected_export = omni::try_get_export(export_name, module_name);
+    omni::module kernel32 = omni::get_module(module_name);
+    omni::module_export expected_export = omni::get_export(export_name, kernel32);
     HMODULE direct_result = ::GetModuleHandleW(L"kernel32.dll");
 
     expect(fatal(direct_result != nullptr));
-    expect(fatal(expected_export.has_value()));
+    expect(fatal(expected_export.present()));
     expect(result.has_value());
 
     expect(*result == direct_result);
     expect(importer.invoke(L"kernel32.dll") == direct_result);
     expect(importer.module_export().present());
-    expect(importer.module_export().address == expected_export->address);
-    expect(importer.module_export().module_base == expected_export->module_base);
-    expect(importer.module_export().name == expected_export->name);
+    expect(importer.module_export().address == expected_export.address);
+    expect(importer.module_export().module_base == expected_export.module_base);
+    expect(importer.module_export().name == expected_export.name);
   };
 
   "void importer invokes a real WinAPI function"_test = [] {
@@ -104,7 +106,7 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     auto direct_function =
       reinterpret_cast<get_file_version_info_size_w_fn>(::GetProcAddress(version_dll.handle, "GetFileVersionInfoSizeW"));
     omni::lazy_importer<get_file_version_info_size_w_fn> importer{"GetFileVersionInfoSizeW", "version.dll"};
-    auto expected_export = omni::try_get_export("GetFileVersionInfoSizeW", "version.dll");
+    omni::module_export expected_export = omni::get_export("GetFileVersionInfoSizeW", version_module);
 
     DWORD direct_handle{};
     DWORD lazy_handle{};
@@ -117,17 +119,17 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     expect(fatal(static_cast<bool>(version_dll)));
     expect(fatal(version_module.present()));
     expect(fatal(direct_function != nullptr));
-    expect(fatal(expected_export.has_value()));
+    expect(fatal(expected_export.present()));
     expect(try_result.has_value());
 
     expect(*try_result == direct_result);
     expect(operator_result == direct_result);
     expect(lazy_handle == direct_handle);
     expect(operator_handle == direct_handle);
-    expect(importer.module_export().address == expected_export->address);
-    expect(importer.module_export().module_base == expected_export->module_base);
-    expect(importer.module_export().name == expected_export->name);
-    expect(importer.module_export().ordinal == expected_export->ordinal);
+    expect(importer.module_export().address == expected_export.address);
+    expect(importer.module_export().module_base == expected_export.module_base);
+    expect(importer.module_export().name == expected_export.name);
+    expect(importer.module_export().ordinal == expected_export.ordinal);
   };
 
   "free lazy_import overloads resolve name pair and function template forms"_test = [] {
@@ -193,10 +195,12 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     clear_exports_cache();
 
     tests::loaded_library version_dll{L"version.dll"};
+    omni::module version_module = tests::get_loaded_module(version_dll.handle);
     omni::default_hash export_name{"GetFileVersionInfoSizeW"};
     omni::default_hash module_name{"version.dll"};
+
     auto cache_key = make_export_cache_key(export_name, module_name);
-    auto expected_export = omni::try_get_export(export_name, module_name);
+    omni::module_export expected_export = omni::get_export(export_name, version_module);
 
     omni::detail::exports_cache.set(cache_key,
       omni::module_export{
@@ -210,13 +214,14 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     auto cached_export = omni::detail::exports_cache.try_get(cache_key);
 
     expect(fatal(static_cast<bool>(version_dll)));
-    expect(fatal(expected_export.has_value()));
+    expect(fatal(version_module.present()));
+    expect(fatal(expected_export.present()));
     expect(fatal(cached_export.has_value()));
 
-    expect(importer.module_export().address == expected_export->address);
-    expect(importer.module_export().module_base == expected_export->module_base);
-    expect(cached_export->address == expected_export->address);
-    expect(cached_export->module_base == expected_export->module_base);
+    expect(importer.module_export().address == expected_export.address);
+    expect(importer.module_export().module_base == expected_export.module_base);
+    expect(cached_export->address == expected_export.address);
+    expect(cached_export->module_base == expected_export.module_base);
   };
 
 #endif

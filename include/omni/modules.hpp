@@ -194,28 +194,6 @@ namespace omni {
   inline module_export get_export(std::uint32_t ordinal, concepts::hash auto module_name, omni::use_ordinal_t);
   inline module_export get_export(std::uint32_t ordinal, default_hash module_name, omni::use_ordinal_t);
 
-  // Overloads that may return std::unexpected for more detailed diagnostics
-
-  inline std::expected<module_export, std::error_code> try_get_export(concepts::hash auto export_name, omni::module module);
-  inline std::expected<module_export, std::error_code> try_get_export(default_hash export_name, omni::module module);
-
-  template <concepts::hash Hasher>
-  inline std::expected<module_export, std::error_code> try_get_export(Hasher export_name, Hasher module_name);
-  inline std::expected<module_export, std::error_code> try_get_export(default_hash export_name, default_hash module_name);
-
-  inline std::expected<module_export, std::error_code> try_get_export(concepts::hash auto export_name);
-  inline std::expected<module_export, std::error_code> try_get_export(default_hash export_name);
-
-  template <concepts::hash Hasher>
-  inline std::expected<module_export, std::error_code> try_get_export(std::uint32_t ordinal, omni::module module,
-    omni::use_ordinal_t);
-  inline std::expected<module_export, std::error_code> try_get_export(std::uint32_t ordinal, omni::module module,
-    omni::use_ordinal_t);
-  inline std::expected<module_export, std::error_code> try_get_export(std::uint32_t ordinal, concepts::hash auto module_name,
-    omni::use_ordinal_t);
-  inline std::expected<module_export, std::error_code> try_get_export(std::uint32_t ordinal, default_hash module_name,
-    omni::use_ordinal_t);
-
 } // namespace omni
 
 #include "omni/impl/modules.ipp"

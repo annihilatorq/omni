@@ -12,6 +12,7 @@
 #include "omni/detail/memory_cache.hpp"
 #include "omni/detail/normalize_pointer_argument.hpp"
 #include "omni/detail/shellcode.hpp"
+#include "omni/error.hpp"
 #include "omni/hash.hpp"
 #include "omni/module_export.hpp"
 #include "omni/status.hpp"
@@ -101,13 +102,12 @@ namespace omni {
         return cached_syscall_id.value();
       }
 #endif
-
-      auto module_export = omni::try_get_export(export_name);
-      if (!module_export) {
-        return std::unexpected(module_export.error());
+      omni::module_export module_export = omni::get_export(export_name);
+      if (!module_export.present()) {
+        return std::unexpected(omni::error::export_not_found);
       }
 
-      auto parsed_syscall_id = syscall_id_parser_(*module_export);
+      auto parsed_syscall_id = syscall_id_parser_(module_export);
       if (!parsed_syscall_id) {
         return std::unexpected(parsed_syscall_id.error());
       }

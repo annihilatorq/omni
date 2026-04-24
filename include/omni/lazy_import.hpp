@@ -8,6 +8,7 @@
 #include "omni/detail/extract_function_name.hpp"
 #include "omni/detail/fixed_string.hpp"
 #include "omni/detail/normalize_pointer_argument.hpp"
+#include "omni/error.hpp"
 #include "omni/hash.hpp"
 #include "omni/module_export.hpp"
 #include "omni/modules.hpp"
@@ -99,17 +100,33 @@ namespace omni {
 
       auto module_export = detail::exports_cache.try_get(export_cache_key);
       if (!module_export or !module_export->present() or !omni::modules{}.contains(module_export->module_base)) {
-        auto fresh_export = omni::try_get_export(export_name, module_name);
-        if (!fresh_export) {
-          return std::unexpected(fresh_export.error());
+        omni::module module = omni::get_module(module_name);
+        if (!module.present()) {
+          return std::unexpected(omni::error::module_not_loaded);
         }
-        detail::exports_cache.set(export_cache_key, *fresh_export);
-        return *fresh_export;
+
+        omni::module_export fresh_export = omni::get_export(export_name, module);
+        if (!fresh_export.present()) {
+          return std::unexpected(omni::error::export_not_found);
+        }
+
+        detail::exports_cache.set(export_cache_key, fresh_export);
+        return fresh_export;
       }
 
       return *module_export;
 #else
-      return omni::try_get_export(export_name, module_name);
+      omni::module module = omni::get_module(module_name);
+      if (!module.present()) {
+        return std::unexpected(omni::error::module_not_loaded);
+      }
+
+      omni::module_export fresh_export = omni::get_export(export_name, module);
+      if (!fresh_export.present()) {
+        return std::unexpected(omni::error::export_not_found);
+      }
+
+      return fresh_export;
 #endif
     }
 
@@ -123,17 +140,23 @@ namespace omni {
       // refresh the cached export, this adds a fast O(n) loaded-module
       // check to each export lookup to detect stale cache entries
       if (!module_export or !module_export->present() or !omni::modules{}.contains(module_export->module_base)) {
-        auto fresh_export = omni::try_get_export(export_name);
-        if (!fresh_export) {
-          return std::unexpected(fresh_export.error());
+        omni::module_export fresh_export = omni::get_export(export_name);
+        if (!fresh_export.present()) {
+          return std::unexpected(omni::error::export_not_found);
         }
-        detail::exports_cache.set(export_cache_key, *fresh_export);
-        return *fresh_export;
+
+        detail::exports_cache.set(export_cache_key, fresh_export);
+        return fresh_export;
       }
 
       return *module_export;
 #else
-      return omni::try_get_export(export_name);
+      omni::module_export fresh_export = omni::get_export(export_name, module);
+      if (!fresh_export.present()) {
+        return std::unexpected(omni::error::export_not_found);
+      }
+
+      return fresh_export;
 #endif
     }
 

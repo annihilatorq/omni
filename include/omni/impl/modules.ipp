@@ -2,7 +2,6 @@
 
 #include "omni/api_set.hpp"
 #include "omni/api_sets.hpp"
-#include "omni/error.hpp"
 #include "omni/hash.hpp"
 #include "omni/module_export.hpp"
 #include "omni/modules.hpp"
@@ -12,7 +11,7 @@ namespace omni {
   namespace detail {
 
     template <concepts::hash Hasher>
-    inline std::expected<module_export, std::error_code> resolve_forwarded_export(omni::address export_address) {
+    inline module_export resolve_forwarded_export(omni::address export_address) {
       // Learn more here: https://devblogs.microsoft.com/oldnewthing/20060719-24/?p=30473
       // In a forwarded export, the address is a string containing
       // information about the actual export and its location
@@ -22,7 +21,7 @@ namespace omni {
       // Split forwarded export to module name and real export name
       forwarder_string forwarder{forwarder_string::parse(forwarder_str)};
       if (forwarder.function.empty()) {
-        return std::unexpected(omni::error::forwarder_string_invalid);
+        return {};
       }
 
       const auto resolve_export_in_module = [&forwarder](Hasher module_name_hash) -> module_export {
@@ -117,7 +116,7 @@ namespace omni {
     }
 
     if (export_it->is_forwarded) {
-      return detail::resolve_forwarded_export<decltype(export_name)>(export_it->address).value_or(module_export{});
+      return detail::resolve_forwarded_export<decltype(export_name)>(export_it->address);
     }
 
     return *export_it;
@@ -164,7 +163,7 @@ namespace omni {
     }
 
     if (export_it->is_forwarded) {
-      return detail::resolve_forwarded_export<Hasher>(export_it->address).value_or(module_export{});
+      return detail::resolve_forwarded_export<Hasher>(export_it->address);
     }
 
     return *export_it;
@@ -180,99 +179,6 @@ namespace omni {
 
   inline module_export get_export(std::uint32_t ordinal, default_hash module_name, omni::use_ordinal_t) {
     return omni::get_export<default_hash>(ordinal, module_name, omni::use_ordinal);
-  }
-
-  inline std::expected<module_export, std::error_code> try_get_export(concepts::hash auto export_name, omni::module module) {
-    if (!module.present()) {
-      return std::unexpected(omni::error::module_not_loaded);
-    }
-
-    auto exports = module.exports();
-    auto export_it = exports.find(export_name);
-    if (export_it == exports.end()) {
-      return std::unexpected(omni::error::export_not_found);
-    }
-
-    if (export_it->is_forwarded) {
-      return detail::resolve_forwarded_export<decltype(export_name)>(export_it->address);
-    }
-
-    return *export_it;
-  }
-
-  inline std::expected<module_export, std::error_code> try_get_export(default_hash export_name, omni::module module) {
-    return try_get_export<default_hash>(export_name, module);
-  }
-
-  template <concepts::hash Hasher>
-  inline std::expected<module_export, std::error_code> try_get_export(Hasher export_name, Hasher module_name) {
-    auto module = omni::get_module(module_name);
-    if (!module.present()) {
-      return std::unexpected(omni::error::module_not_loaded);
-    }
-
-    return omni::try_get_export<Hasher>(export_name, module);
-  }
-
-  inline std::expected<module_export, std::error_code> try_get_export(default_hash export_name, default_hash module_name) {
-    return try_get_export<default_hash>(export_name, module_name);
-  }
-
-  inline std::expected<module_export, std::error_code> try_get_export(concepts::hash auto export_name) {
-    for (const omni::module& module : omni::modules{}) {
-      auto exports = module.exports();
-      auto export_it = exports.find(export_name);
-      if (export_it == exports.end()) {
-        continue;
-      }
-
-      if (export_it->is_forwarded) {
-        return detail::resolve_forwarded_export<decltype(export_name)>(export_it->address);
-      }
-
-      return *export_it;
-    }
-
-    return std::unexpected(omni::error::export_not_found);
-  }
-
-  inline std::expected<module_export, std::error_code> try_get_export(default_hash export_name) {
-    return try_get_export<default_hash>(export_name);
-  }
-
-  template <concepts::hash Hasher>
-  inline std::expected<module_export, std::error_code> try_get_export(std::uint32_t ordinal, omni::module module,
-    omni::use_ordinal_t) {
-    if (!module.present()) {
-      return std::unexpected(omni::error::module_not_loaded);
-    }
-
-    auto exports = module.exports();
-    auto export_it = exports.find(ordinal, omni::use_ordinal);
-    if (export_it == exports.end()) {
-      return std::unexpected(omni::error::export_not_found);
-    }
-
-    if (export_it->is_forwarded) {
-      return detail::resolve_forwarded_export<Hasher>(export_it->address);
-    }
-
-    return *export_it;
-  }
-
-  inline std::expected<module_export, std::error_code> try_get_export(std::uint32_t ordinal, omni::module module,
-    omni::use_ordinal_t) {
-    return try_get_export<default_hash>(ordinal, module, omni::use_ordinal);
-  }
-
-  inline std::expected<module_export, std::error_code> try_get_export(std::uint32_t ordinal, concepts::hash auto module_name,
-    omni::use_ordinal_t) {
-    return omni::try_get_export<decltype(module_name)>(ordinal, omni::get_module(module_name), omni::use_ordinal);
-  }
-
-  inline std::expected<module_export, std::error_code> try_get_export(std::uint32_t ordinal, default_hash module_name,
-    omni::use_ordinal_t) {
-    return try_get_export<default_hash>(ordinal, module_name, omni::use_ordinal);
   }
 
 } // namespace omni
