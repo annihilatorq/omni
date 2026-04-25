@@ -1,0 +1,70 @@
+name: Windows GCC
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/**"]
+  pull_request:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/**"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & Test (${{ matrix.arch.name }}, ${{ matrix.build_type }})
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, Release]
+        std: [23]
+        arch:
+          - name: x64
+            msystem: UCRT64
+            package_prefix: ucrt-x86_64
+            build_dir_suffix: x64
+          - name: x86
+            msystem: MINGW32
+            package_prefix: i686
+            build_dir_suffix: x86
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.arch.msystem }}
+          update: true
+          install: >-
+            mingw-w64-${{ matrix.arch.package_prefix }}-gcc
+            mingw-w64-${{ matrix.arch.package_prefix }}-cmake
+            mingw-w64-${{ matrix.arch.package_prefix }}-ninja
+
+      - name: Configure CMake
+        shell: msys2 {0}
+        run: |
+          build_dir="${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}"
+          cmake -S . -B "$build_dir" \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
+            -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
+            -DCMAKE_CXX_STANDARD_REQUIRED=ON \
+            -DCMAKE_CXX_EXTENSIONS=OFF \
+            -DCMAKE_CXX_FLAGS_DEBUG="-Wa,-mbig-obj"
+
+      - name: Build
+        shell: msys2 {0}
+        run: |
+          build_dir="${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}"
+          cmake --build "$build_dir" --parallel
+
+      - name: Test
+        shell: msys2 {0}
+        run: |
+          build_dir="${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}"
+          ctest --test-dir "$build_dir" --output-on-failure --timeout 30

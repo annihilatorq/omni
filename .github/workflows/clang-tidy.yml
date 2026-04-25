@@ -1,0 +1,60 @@
+name: Clang Tidy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/**"]
+  pull_request:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/**"]
+  workflow_dispatch:
+
+jobs:
+  verify_tidy:
+    name: Run
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Generate build
+        shell: pwsh
+        run: |
+          cmake -S "${{ github.workspace }}" -B build `
+            -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
+            -DCMAKE_C_COMPILER=clang-cl `
+            -DCMAKE_CXX_COMPILER=clang-cl `
+            -DCMAKE_CXX_STANDARD=23 `
+            -DCMAKE_CXX_STANDARD_REQUIRED=ON `
+            -DCMAKE_CXX_EXTENSIONS=OFF
+
+      - name: Run clang tidy
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://raw.githubusercontent.com/llvm/llvm-project/refs/heads/release/20.x/clang-tools-extra/clang-tidy/tool/run-clang-tidy.py" `
+            -OutFile "run-clang-tidy.py"
+
+          python -u run-clang-tidy.py `
+            -clang-tidy-binary clang-tidy `
+            -p build `
+            -j 0 `
+            -extra-arg-before=--driver-mode=cl `
+            -checks=-clang-analyzer-* `
+            -source-filter '.*[\\/](tests|examples)[\\/].*' `
+            -header-filter '.*[\\/](include|tests|examples)[\\/].*' `
+            -exclude-header-filter '.*[\\/]build[\\/]_deps[\\/].*' `
+            -allow-no-checks

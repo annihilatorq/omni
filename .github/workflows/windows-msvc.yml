@@ -1,0 +1,56 @@
+name: Windows MSVC
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/**"]
+  pull_request:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/**"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & Test (${{ matrix.arch.name }}, ${{ matrix.build_type }})
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, Release]
+        std: [23]
+        arch:
+          - name: x64
+            cmake_arch: x64
+            build_dir_suffix: x64
+          - name: x86
+            cmake_arch: Win32
+            build_dir_suffix: x86
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          $buildDir = "${{ github.workspace }}/${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}"
+          cmake -S "${{ github.workspace }}" -B $buildDir `
+            -G "Visual Studio 18 2026" `
+            -A "${{ matrix.arch.cmake_arch }}" `
+            -DCMAKE_CXX_STANDARD=${{ matrix.std }} `
+            -DCMAKE_CXX_STANDARD_REQUIRED=ON `
+            -DCMAKE_CXX_EXTENSIONS=OFF `
+            -DCMAKE_CXX_FLAGS_DEBUG="/bigobj"
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $buildDir = "${{ github.workspace }}/${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}"
+          cmake --build $buildDir --config ${{ matrix.build_type }} --parallel
+
+      - name: Test
+        shell: pwsh
+        run: |
+          $buildDir = "${{ github.workspace }}/${{ matrix.arch.build_dir_suffix }}-${{ matrix.build_type }}"
+          ctest --test-dir $buildDir --output-on-failure --timeout 30 -C ${{ matrix.build_type }}

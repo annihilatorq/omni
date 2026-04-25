@@ -1,0 +1,9 @@
+InheritParentConfig: true
+Checks: >
+  -misc-use-internal-linkage,
+  -google-build-using-namespace,
+  -readability-qualified-auto,
+  -google-global-names-in-headers,
+  -bugprone-exception-escape,
+  -hicpp-special-member-functions,
+  -cppcoreguidelines-special-member-functions,

@@ -1,0 +1,23 @@
+name: Clang Format
+
+on:
+  push:
+    branches: ["main"]
+    paths-ignore: ["**/*.md", "docs/**"]
+  pull_request:
+    branches: ["main"]
+    paths-ignore: ["**/*.md", "docs/**"]
+  workflow_dispatch:
+
+jobs:
+  verify_fmt:
+    name: Run
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: jidicula/clang-format-action@v4.18.0
+        with:
+          clang-format-version: '21'

@@ -1,0 +1,64 @@
+Checks: >
+    modernize-*,
+    bugprone-*,
+    cert-*,
+    clang-analyzer-*,
+    clang-diagnostic-*,
+    concurrency-*,
+    cppcoreguidelines-*,
+    fuchsia-multiple-inheritance,
+    hicpp-*,
+    misc-*,
+    google-*,
+    performance-*,
+    portability-*,
+    readability-*,
+    modernize-return-braced-init-list,
+    -bugprone-easily-swappable-parameters,
+    -bugprone-unchecked-optional-access,
+    -bugprone-suspicious-stringview-data-usage,
+    -cert-err58-cpp,
+    -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+    -cppcoreguidelines-pro-type-reinterpret-cast,
+    -cppcoreguidelines-pro-bounds-constant-array-index,
+    -cppcoreguidelines-avoid-capturing-lambda-coroutines,
+    -cppcoreguidelines-avoid-reference-coroutine-parameters,
+    -cppcoreguidelines-pro-type-union-access,
+    -cppcoreguidelines-missing-std-forward,
+    -cppcoreguidelines-avoid-c-arrays,
+    -cppcoreguidelines-avoid-non-const-global-variables,
+    -*-magic-numbers,
+    -misc-include-cleaner,
+    -misc-no-recursion,
+    -misc-const-correctness,
+    -misc-header-include-cycle,
+    -modernize-use-trailing-return-type,
+    -modernize-avoid-c-arrays,
+    -readability-convert-member-functions-to-static,
+    -readability-function-cognitive-complexity,
+    -readability-identifier-length,
+    -readability-named-parameter,
+    -hicpp-named-parameter,
+    -hicpp-avoid-c-arrays,
+    -performance-unnecessary-value-param,
+    -performance-no-int-to-ptr,
+    -performance-enum-size,
+    -google-readability-todo,
+WarningsAsErrors: '*'
+HeaderFilterRegex: ''
+FormatStyle: file
+CheckOptions:
+    - key:  cppcoreguidelines-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+      value: '1'
+    - key:  modernize-use-nullptr.NullMacros
+      value: 'NULL'
+    - key:  misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+      value: '1'
+    - key:  google-readability-function-size.StatementThreshold
+      value: '300'
+    - key:  readability-redundant-access-specifiers.CheckFirstDeclaration
+      value: '1'
+    - key: readability-identifier-naming.PrivateMemberCase
+      value: lower_case
+    - key: readability-identifier-naming.PrivateMemberSuffix
+      value: '_'

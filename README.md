@@ -1,466 +1,231 @@
-# shadow syscalls
+[![Windows MSVC](https://github.com/annihilatorq/shadow_syscall/actions/workflows/windows-msvc.yml/badge.svg)](https://github.com/annihilatorq/shadow_syscall/actions/workflows/windows-msvc.yml)
+[![Windows Clang-cl](https://github.com/annihilatorq/shadow_syscall/actions/workflows/windows-clang-cl.yml/badge.svg)](https://github.com/annihilatorq/shadow_syscall/actions/workflows/windows-clang-cl.yml)
+[![Windows GCC](https://github.com/annihilatorq/shadow_syscall/actions/workflows/windows-gcc.yml/badge.svg)](https://github.com/annihilatorq/shadow_syscall/actions/workflows/windows-gcc.yml)
+[![Windows MSVC Without Exceptions](https://github.com/annihilatorq/shadow_syscall/actions/workflows/windows-msvc-no-exceptions.yml/badge.svg)](https://github.com/annihilatorq/shadow_syscall/actions/workflows/windows-msvc-no-exceptions.yml)
 
-Easy to use syscall/import executor wrapper. Syscall is based on shellcode. Function names passed in arguments are hashed at compile-time.
-Supports x86 architecture, but on x86 `.shadowsyscall()` is inaccessible.
+# omni
 
-The repository provides a convenient high-level wrapper over low-level operations, range-based enumerators for modules and their exports. Includes all `GetModuleHandle`, `GetProcAddress` implementations in a much nicer wrapper without leaving any strings in binary.
-Allows calling undocumented DLL functions. Has a built-in forwarded import resolver (HeapAlloc, etc.)
+> A header-only C++23 library for Windows-focused low-level work: module/export inspection, lazy imports, syscalls, shared user data, and compile-time hashing.
 
-### Supported platforms
-CLANG, GCC, MSVC. Library requires cpp20.
+`omni` gives you modern C++ wrappers around the parts of WinAPI work that are usually noisy: walking the loader list, parsing exports, resolving imports by hash, calling syscalls, and reading shared user data. It stays range-friendly where iteration matters, keeps the common call sites short, and offers typed wrappers as optional extra validation when you want them.
 
-### Quick example
-```cpp
-// Execute "NtTerminateProcess" syscall
-shadowsyscall<NTSTATUS>( "NtTerminateProcess", reinterpret_cast< HANDLE >( -1 ), -6932 );
+## Highlights
 
-// Since version 1.2, the return type may not be specified
-shadowsyscall( "NtTerminateProcess", reinterpret_cast< HANDLE >( -1 ), -6932 );
+- Header-only CMake target: `omni::omni`
+- Loader/module/export inspection with `omni::modules`, `omni::module`, and `omni::module_exports`
+- Lazy imports and syscall calls with terse free-function overloads
+- Optional typed wrappers via `omni::lazy_importer` and `omni::syscaller`
+- Compile-time string hashing with implicit literal-friendly constructors
+- Ranges-friendly iterators for modules and exports
+- Optional caching for syscall IDs and lazy imports
+- Windows-specific tests for loader semantics, export parsing, caching, and syscall resolution
 
-// Execute any export at runtime
-// Since version 1.2, the return type may not be specified
-shadowcall<int>( "MessageBoxA", nullptr, "string 1", "string 2", MB_OK );
+## Quick Start
+
+```cmake
+add_subdirectory(path/to/omni)
+target_link_libraries(your_target PRIVATE omni::omni)
 ```
 
-> [!IMPORTANT]\
-> Make sure you load the dll module that contains the export you want to call. For example - to call MessageBoxA, you need to load "user32.dll" into the current process.
-
-Shellcode uses allocator based on `NtAllocateVirtualMemory` & `NtFreeVirtualMemory`
-
-## Detailed executors example (x64)
 ```cpp
 #include <Windows.h>
-#include <thread>
-#include "shadowsyscall.hpp"
 
-// If "set_custom_ssn_parser" was called, the handling
-// of the syscall index is entirely the user's responsibility
-//
-// This function is gonna be called once if caching is enabled.
-// If not, the function will be called on every syscall
-std::optional<uint32_t> custom_ssn_parser(shadow::syscaller<NTSTATUS>& instance,
-                                          shadow::address_t export_address) {
-  if (!export_address) {
-    instance.set_last_error(shadow::error::ssn_not_found);
-    return std::nullopt;
-  }
-  return *export_address.ptr<std::uint32_t>(4);
-}
+#include "omni/modules.hpp"
+#include "omni/syscall.hpp"
 
-// Pass the function name as a string, and it will be converted
-// into a number at compile-time by the hash64_t constructor
-void execute_syscall_with_custom_ssn_parser(shadow::hash64_t function_name) {
-  shadow::syscaller<NTSTATUS> sc{function_name};
-  sc.set_ssn_parser(custom_ssn_parser);
-
-  auto current_process = reinterpret_cast<void*>(-1);
-  std::uintptr_t debug_port{0};
-  auto status = sc(current_process, 7, &debug_port, sizeof(std::uintptr_t), nullptr);
-  if (auto error = sc.last_error(); error)
-    std::cerr << "Syscall error occurred: " << error.value() << '\n';
-
-  std::cout << "NtQueryInformationProcess status: 0x" << std::hex << status
-            << ", debug port is: " << debug_port << "\n";
-}
+#include <cstdint>
+#include <print>
 
 int main() {
-  execute_syscall_with_custom_ssn_parser("NtQueryInformationProcess");
+  auto kernel32 = omni::get_module(L"kernel32.dll");
+  auto yield_status = omni::syscall("NtYieldExecution");
 
-  // This is a replacement for: LoadLibraryA("user32.dll");
-  //
-  // Since LoadLibraryA is a function implemented in kernelbase.dll,
-  // and kernelbase.dll is a "pinned" DLL module, it is,
-  // guaranteed to be loaded into the process.
-  shadowcall("LoadLibraryA", "user32.dll");
-
-  // When we know which DLL the export is in, we can specify it so
-  // that we don't have to iterate through the exports of all DLLs
-  shadowcall({"MessageBoxA", "user32.dll"}, nullptr, "string 1", "string 2", MB_OK);
-
-  // Get a wrapper for lazy importing, but with the
-  // ability to get details of a DLL export
-  shadow::importer<int> message_box_import("MessageBoxA");
-  int message_box_result = message_box_import(nullptr, "string 3", "string 4", MB_OK);
-
-  std::cout << "MessageBoxA returned: " << message_box_result
-            << "; import data is: " << message_box_import.exported_symbol() << '\n';
-
-  HANDLE thread_handle = nullptr;
-  const auto current_process = reinterpret_cast<HANDLE>(-1);
-  auto start_routine = [](void*) -> DWORD {
-    std::cout << "\nHello from thread " << std::this_thread::get_id() << "\n";
-    return 0;
-  };
-
-  // 1. Handle syscall failure
-  // Return type may not be specified since v1.2
-  shadow::syscaller create_thread_sc("NtCreateThreadEx");
-
-  auto create_thread_status = create_thread_sc(
-      &thread_handle, THREAD_ALL_ACCESS, NULL, current_process,
-      static_cast<LPTHREAD_START_ROUTINE>(start_routine), 0, FALSE, NULL, NULL, NULL, 0);
-
-  if (auto error = create_thread_sc.last_error(); error)
-    std::cout << "NtCreateThreadEx error occurred: " << error.value() << "\n";
-  else
-    std::cout << "NtCreateThreadEx call status: 0x" << std::hex << create_thread_status << '\n';
-
-  // 2. When error handling is not required, get a plain return value
-  auto simple_status = shadowsyscall("NtTerminateProcess", reinterpret_cast<HANDLE>(-1), -6932);
+  std::println("module  : {}", kernel32.name());
+  std::println("exports : {}", kernel32.exports().size());
+  std::println("yield   : 0x{:08X}", static_cast<std::uint32_t>(yield_status.value));
 }
 ```
 
-## Detailed module & shared-data parser example
+## API Surface
+
+| Area | Main types |
+| --- | --- |
+| Syscalls | `omni::syscall`, `omni::syscaller`, `omni::status` |
+| Lazy imports | `omni::lazy_import`, `omni::lazy_importer` |
+| Loader inspection | `omni::modules`, `omni::module`, `omni::module_export`, `omni::module_exports` |
+| Shared data | `omni::shared_user_data` |
+| Utilities | `omni::address`, `omni::allocator`, `omni::fnv1a32`, `omni::fnv1a64`, custom hash policies |
+
+## Examples
+
+Every file in [`examples/`](examples) builds as its own executable:
+
+`address` · `allocator` · `hash` · `lazy_import` · `module` · `module_exports` · `modules` · `shared_user_data` · `status` · `syscall`
+
+<details>
+  <summary><code>examples/module.cpp</code> — iterate exports like a normal range</summary>
+
 ```cpp
-#include "shadowsyscall.hpp"
+#include <Windows.h>
 
-template <typename... Args>
-void debug_log(const std::format_string<Args...> fmt, Args&&... args) {
-  std::cout << std::format(fmt, std::forward<Args>(args)...) << '\n';
-}
+#include "omni/module.hpp"
 
-template <typename... Args>
-void log_value(std::string_view label, Args&&... args) {
-  constexpr int column_width = 32;
-  std::cout << std::format("{:>{}}: ", label, column_width);
-  if constexpr (sizeof...(Args) > 0) {
-    (std::cout << ... << std::forward<Args>(args));
-  }
-  std::cout << '\n';
-}
-
-void new_line(int count = 1) {
-  for (int i = 0; i < count; i++)
-    std::cout.put('\n');
-}
-
-#define obfuscate_string(str)    \
-  []() {                         \
-    /* Any string obfuscation */ \
-    return str;                  \
-  }
+#include <print>
+#include <ranges>
 
 int main() {
-  // Enumerate every dll loaded into current process
-  const auto dlls = shadow::dlls();
-  debug_log("List of DLLs loaded in the current process:");
-  for (const auto& dll : shadow::dlls())
-    debug_log("{} : {}", dll.filepath().string(), dll.native_handle());
+  auto kernel32 = omni::get_module(L"kernel32.dll");
 
-  new_line();
-
-  // Find a specific DLL loaded into the current process.
-  // "ntdll.dll" doesn't leave the string in the executable -
-  // it’s hashed at compile time (consteval guarantee)
-  // The implementation doesn't care about the ".dll" suffix
-
-  // after compilation it will become 384989384324938
-  auto ntdll_name_hash = shadow::hash64_t{"ntdll"};
-  auto ntdll = shadow::dll(ntdll_name_hash);
-
-  auto base_module = shadow::base_module();
-  debug_log("Current .exe filepath: {}", base_module.filepath().string());
-  debug_log("Current .text section checksum: {}",
-            base_module.section_checksum<std::size_t>(".text"));
-  debug_log("Current module handle: {}",
-            base_module.native_handle());  // same as GetModuleHandle(nullptr)
-  new_line();
-
-  auto image = ntdll.image();
-  auto sections = image->get_nt_headers()->sections();
-  auto optional_header = image->get_optional_header();
-  auto exports = ntdll.exports();
-
-  constexpr int export_entries_count = 5;
-  const auto first_n_exports = exports | std::views::take(export_entries_count);
-
-  debug_log("{} first exports of ntdll.dll", export_entries_count);
-  for (const shadow::win::export_t& exp : first_n_exports) {
-    const auto& [name, address, ordinal] = std::make_tuple(exp.name, exp.address, exp.ordinal);
-    debug_log("{} : {} : {}", name, address.ptr(), ordinal);
+  for (const auto& export_entry : kernel32.exports().named() | std::views::take(5)) {
+    std::println("{}", export_entry.name);
   }
+}
+```
 
-  new_line();
+Example output:
 
-  auto it = exports.find_if([](const shadow::win::export_t& export_data) -> bool {
-    // after compilation becomes 384989384324938
-    constexpr auto compiletime_hash = shadow::hash64_t{"NtQuerySystemInformation"};
-    // operator() (called in runtime) accepts any range that have access by index
-    const auto runtime_hash = shadow::hash64_t{}(export_data.name);
-    return compiletime_hash == runtime_hash;
-  });
+```text
+AcquireSRWLockExclusive
+AcquireSRWLockShared
+ActivateActCtx
+AddAtomA
+AddAtomW
+```
 
-  if (it == exports.end()) {
-    debug_log("Failed to find NtQuerySystemInformation export");
+</details>
+
+<details>
+  <summary><code>examples/lazy_import.cpp</code> — simple call site first, typed access when you want metadata</summary>
+
+```cpp
+#include <Windows.h>
+
+#include "omni/lazy_import.hpp"
+
+#include <print>
+
+int main() {
+  auto process_id = omni::lazy_import<DWORD>("GetCurrentProcessId");
+  auto get_module_handle = omni::lazy_importer<HMODULE(WINAPI*)(LPCWSTR)>{"GetModuleHandleW"};
+  auto kernel32 = get_module_handle(L"kernel32.dll");
+
+  if (kernel32 == nullptr) {
     return 1;
   }
 
-  const auto& export_data = *it;
-  debug_log("Export {} VA is {}", export_data.name, export_data.address.ptr());
+  auto export_entry = get_module_handle.module_export();
 
-  constexpr int ordinal = 10;
-  const auto& ordinal_export =
-      shadow::exported_symbol(shadow::use_ordinal, ntdll_name_hash, ordinal);
-  debug_log("Export on ordinal {} in ntdll.dll is presented on VA {}", ordinal,
-            ordinal_export.address().ptr());
-
-  // "location" returns a DLL struct that contains this export
-  std::filesystem::path dll_path = shadow::exported_symbol("Sleep").location().name().to_path();
-  debug_log("The DLL that contains the Sleep export is: {}", dll_path.string());
-
-  new_line(2);
-
-  log_value("[NTDLL]");
-  log_value("Base Address", ntdll.base_address().ptr());
-  log_value("Native Handle", ntdll.native_handle());
-  log_value("Entry Point", ntdll.entry_point());
-  log_value("Name", ntdll.name().string());
-  log_value("Path to File", ntdll.filepath().to_path());
-  log_value("Reference count", ntdll.reference_count());
-  log_value("Image Size", optional_header->size_image);
-  log_value("Sections count", std::ranges::size(sections));
-  log_value("Exports count", exports.size());
-  new_line();
-
-  // shared_data parses KUSER_SHARED_DATA
-  // The class is a high-level wrapper for parsing,
-  // which saves you from pointer arithmetic
-  auto shared = shadow::shared_data();
-
-  // shared_data() implements the most popular getters, while you
-  // can access the entire KUSER_SHARED_DATA structure as follows:
-  auto kuser_shared_data = shared.get();
-
-  // This structure weighs 3528 bytes (on x64 architecture), so for
-  // obvious reasons I will not display all its fields in this example
-  std::ignore = kuser_shared_data->system_expiration_date;
-
-  log_value("[KERNEL]");
-  log_value("Safe boot", shared.safe_boot_enabled());
-  log_value("Boot ID", shared.boot_id());
-  log_value("Physical Pages Num", shared.physical_pages_num());
-  log_value("Kernel debugger present", shared.kernel_debugger_present());
-  log_value("System root", shared.system_root().to_path().string());
-  new_line();
-
-  auto system = shared.system();
-
-  log_value("[SYSTEM]");
-  log_value("Windows 11", system.is_windows_11());
-  log_value("Windows 10", system.is_windows_10());
-  log_value("Windows 7", system.is_windows_7());
-  log_value("Windows XP", system.is_windows_xp());
-  log_value("Windows Vista", system.is_windows_vista());
-  log_value("OS Major Version", system.major_version());
-  log_value("OS Minor Version", system.minor_version());
-  log_value("OS Build Number", system.build_number());
-  log_value("Formatted OS String", system.formatted());
-  new_line();
-
-  auto unix_timestamp = shared.unix_epoch_timestamp();
-  auto windows_timestamp = shared.windows_epoch_timestamp();
-
-  log_value("[TIME]");
-  log_value("Unix Time", unix_timestamp.utc().time_since_epoch());
-  log_value("Unix Time", unix_timestamp.utc().format_iso8601());
-  log_value("Unix Time (Local)", unix_timestamp.local().time_since_epoch());
-  log_value("Unix Time (Local) (ISO 8601)", unix_timestamp.local().format_iso8601());
-  log_value("Windows Time", shared.windows_epoch_timestamp());
-  log_value("Timezone ID", shared.timezone_id());
-  log_value("Timezone offset", shared.timezone_offset<std::chrono::seconds>());
-
-  // Iterators are compatible with the ranges library
-  static_assert(std::bidirectional_iterator<shadow::detail::export_view::iterator>);
-  static_assert(std::bidirectional_iterator<shadow::detail::module_view::iterator>);
-
-  // Code below DOES NOT COMPILE. hash*_t requires a string literal
-  // because the hashing of the string happens at compile time, so there
-  // is no point in you obfuscating the string in any way, because it
-  // will turn into a number and disappear from the binary after compilation.
-  //
-  // constexpr auto hash_that_causes_ct_error = shadow::hash64_t{string_obfuscator("string")};
-  //
-  // The right way to do it is:
-  // constexpr auto valid_hash = shadow::hash64_t{"string"};
+  std::println("process id     : {}", process_id);
+  std::println("result         : {:#x}", reinterpret_cast<std::uintptr_t>(kernel32));
+  std::println("export address : {:#x}", export_entry.address.value());
 }
 ```
 
-<details>
-  <summary>Console output</summary>
+Example output:
 
-  ```
-List of DLLs loaded in the current process:
-C:\WINDOWS\SYSTEM32\ntdll.dll : 0x7ff933ca0000
-C:\WINDOWS\System32\KERNEL32.DLL : 0x7ff933310000
-C:\WINDOWS\System32\KERNELBASE.dll : 0x7ff930f40000
-C:\WINDOWS\SYSTEM32\VCRUNTIME140D.dll : 0x7ff916180000
-C:\WINDOWS\SYSTEM32\MSVCP140D.dll : 0x7ff8de2f0000
-C:\WINDOWS\SYSTEM32\VCRUNTIME140_1D.dll : 0x7ff92dde0000
-C:\WINDOWS\SYSTEM32\ucrtbased.dll : 0x7ff8afe90000
+```text
+process id     : 18432
+result         : 0x7ff9d3d40000
+export address : 0x7ff9d3d5b7f0
+```
 
-Current .exe filepath: C:\artem\cpp\shadow_syscall\build\examples\module_parser.exe
-Current .text section checksum: 18446744073709543893
-Current module handle: 0x7ff609e80000
-
-5 first exports of ntdll.dll
-A_SHAFinal : 0x7ff933ca1200 : 9
-A_SHAInit : 0x7ff933d8a840 : 10
-A_SHAUpdate : 0x7ff933ca3090 : 11
-AlpcAdjustCompletionListConcurrencyCount : 0x7ff933daed50 : 12
-AlpcFreeCompletionListMessage : 0x7ff933d780d0 : 13
-
-Export NtQuerySystemInformation VA is 0x7ff933dfc670
-Export on ordinal 10 in ntdll.dll is presented on VA 0x7ff933d8a840
-The DLL that contains the Sleep export is: KERNEL32.DLL
-
-
-                         [NTDLL]:
-                    Base Address: 00007FF933CA0000
-                   Native Handle: 00007FF933CA0000
-                     Entry Point: 0000000000000000
-                            Name: ntdll.dll
-                    Path to File: "C:\\WINDOWS\\SYSTEM32\\ntdll.dll"
-                 Reference count: 65535
-                      Image Size: 2490368
-                  Sections count: 15
-                   Exports count: 2513
-
-                        [KERNEL]:
-                       Safe boot: 0
-                         Boot ID: 30
-              Physical Pages Num: 8368911
-         Kernel debugger present: 0
-                     System root: C:\WINDOWS
-
-                        [SYSTEM]:
-                      Windows 11: 1
-                      Windows 10: 0
-                       Windows 7: 0
-                      Windows XP: 0
-                   Windows Vista: 0
-                OS Major Version: 10
-                OS Minor Version: 0
-                 OS Build Number: 26100
-             Formatted OS String: Windows 10.0 (Build 26100)
-
-                          [TIME]:
-                       Unix Time: 1746661511
-                       Unix Time: 2025-05-07T23:45:11
-               Unix Time (Local): 1746668711
-    Unix Time (Local) (ISO 8601): 2025-05-08T01:45:11
-                    Windows Time: 133911351118390449
-                     Timezone ID: 2
-                 Timezone offset: 7200s
-  ```
-  
 </details>
 
-## Hardware processor parser
+<details>
+  <summary><code>examples/syscall.cpp</code> — plain syscall first, typed wrappers when you want extra checking</summary>
+
 ```cpp
-#include <iomanip>
-#include <iostream>
-#include "shadowsyscall.hpp"
+#include "omni/syscall.hpp"
+
+#include <cstdint>
+#include <print>
 
 int main() {
-    auto support_message = []( std::string_view isa_feature, bool is_supported ) {
-        constexpr int width = 12;
-        std::cout << std::left << std::setw( width ) << isa_feature << ( is_supported ? "[+]" : "[-]" ) << std::endl;
-    };
+  auto status = omni::syscall("NtYieldExecution");
+  auto typed_status = omni::syscaller<omni::status (*)()>{"NtYieldExecution"}.invoke();
 
-    std::cout << shadow::cpu().vendor() << std::endl;
-    std::cout << shadow::cpu().brand() << std::endl;
-
-    const auto& caches = shadow::cpu().caches();
-
-    // CPU caches parsing is supported for current processor
-    if ( caches ) {
-        std::cout << "L1 cache size:     " << caches->l1_size() << "\n";
-        std::cout << "L2 cache size:     " << caches->l2_size() << "\n";
-        std::cout << "L3 cache size:     " << caches->l3_size() << "\n";
-        std::cout << "Total caches size: " << caches->total_size().as_bytes() << "\n";
-    } else {
-        // Otherwise - the library does not yet support parsing for the existing processor
-        std::cout << "Cache parsing is not supported by `shadow` on your processor architecture\n";
-    }
-
-    support_message( "IS_INTEL", shadow::cpu().is_intel() );
-    support_message( "IS_AMD", shadow::cpu().is_amd() );
-    support_message( "ABM", shadow::cpu().supports_abm() );
-    support_message( "ADX", shadow::cpu().supports_adx() );
-    support_message( "AES", shadow::cpu().supports_aes() );
-    support_message( "AVX", shadow::cpu().supports_avx() );
-    support_message( "AVX2", shadow::cpu().supports_avx2() );
-    support_message( "AVX512CD", shadow::cpu().supports_avx512cd() );
-    support_message( "AVX512ER", shadow::cpu().supports_avx512er() );
-    support_message( "AVX512F", shadow::cpu().supports_avx512f() );
-    support_message( "AVX512PF", shadow::cpu().supports_avx512pf() );
-    support_message( "BMI1", shadow::cpu().supports_bmi1() );
-    support_message( "BMI2", shadow::cpu().supports_bmi2() );
-    support_message( "CLFLUSH", shadow::cpu().supports_clflush() );
-    support_message( "CMPXCHG16B", shadow::cpu().supports_cmpxchg16b() );
-    support_message( "CX8", shadow::cpu().supports_cx8() );
-    support_message( "ERMS", shadow::cpu().supports_erms() );
-    support_message( "F16C", shadow::cpu().supports_f16c() );
-    support_message( "FMA", shadow::cpu().supports_fma() );
-    support_message( "FSGSBASE", shadow::cpu().supports_fsgsbase() );
-    support_message( "FXSR", shadow::cpu().supports_fxsr() );
-    support_message( "HLE", shadow::cpu().supports_hle() );
-    support_message( "INVPCID", shadow::cpu().supports_invpcid() );
-    support_message( "LAHF", shadow::cpu().supports_lahf() );
-    support_message( "LZCNT", shadow::cpu().supports_lzcnt() );
-    support_message( "MMX", shadow::cpu().supports_mmx() );
-    support_message( "MMXEXT", shadow::cpu().supports_mmxext() );
-    support_message( "MONITOR", shadow::cpu().supports_monitor() );
-    support_message( "MOVBE", shadow::cpu().supports_movbe() );
-    support_message( "MSR", shadow::cpu().supports_msr() );
-    support_message( "OSXSAVE", shadow::cpu().supports_osxsave() );
-    support_message( "PCLMULQDQ", shadow::cpu().supports_pclmulqdq() );
-    support_message( "POPCNT", shadow::cpu().supports_popcnt() );
-    support_message( "PREFETCHWT1", shadow::cpu().supports_prefetchwt1() );
-    support_message( "RDRAND", shadow::cpu().supports_rdrand() );
-    support_message( "RDSEED", shadow::cpu().supports_rdseed() );
-    support_message( "RDTSCP", shadow::cpu().supports_rdtscp() );
-    support_message( "RTM", shadow::cpu().supports_rtm() );
-    support_message( "SEP", shadow::cpu().supports_sep() );
-    support_message( "SHA", shadow::cpu().supports_sha() );
-    support_message( "SSE", shadow::cpu().supports_sse() );
-    support_message( "SSE2", shadow::cpu().supports_sse2() );
-    support_message( "SSE3", shadow::cpu().supports_sse3() );
-    support_message( "SSE4.1", shadow::cpu().supports_sse4_1() );
-    support_message( "SSE4.2", shadow::cpu().supports_sse4_2() );
-    support_message( "SSE4a", shadow::cpu().supports_sse4a() );
-    support_message( "SSSE3", shadow::cpu().supports_ssse3() );
-    support_message( "SYSCALL", shadow::cpu().supports_syscall() );
-    support_message( "TBM", shadow::cpu().supports_tbm() );
-    support_message( "XOP", shadow::cpu().supports_xop() );
-    support_message( "XSAVE", shadow::cpu().supports_xsave() );
+  std::println("status  : 0x{:08X}", static_cast<std::uint32_t>(status.value));
+  std::println("success : {}", status.is_success());
+  std::println("typed   : 0x{:08X}", static_cast<std::uint32_t>(typed_status.value));
 }
 ```
 
-## 🚀 Features
+Example output:
 
-- Caching each call (it is possible to disable caching)
-- Enumerate every DLL loaded to current process
-- Compute checksum of the DLL section (any) in runtime
-- Find exactly known DLL loaded to current process
-- Enumerate EAT of module
-- Resolve PE-headers and directories of module
-- Compile-time string hasher
-- Hash seed is pseudo-randomized, based on header file location
-- Syscall executor
-- Overriding syscall SSN parser
-- Execute any export at runtime
-- Doesn't leave any imports in the executable
-- CPU instruction-set support checker & cache parser
+```text
+status  : 0x00000000
+success : true
+typed   : 0x00000000
+```
 
-## 📜 What is a syscall in Windows?
-![syscalls](https://github.com/user-attachments/assets/1719c073-669b-4e6b-b2ec-23850ba91dbc)
+</details>
 
-## Backward compatibility
-> [!WARNING]\
-> This library is under development and most updates will not be backwards compatible with previous versions so that the code remains as clean as possible, and the library interface will have the opportunity to evolve.
+For fuller examples, see:
 
-## Thanks to
-invers1on :heart:
+- [`examples/hash.cpp`](examples/hash.cpp)
+- [`examples/module_exports.cpp`](examples/module_exports.cpp)
+- [`examples/modules.cpp`](examples/modules.cpp)
+- [`examples/shared_user_data.cpp`](examples/shared_user_data.cpp)
 
-https://github.com/can1357/linux-pe
+## Building
+
+Requirements:
+
+- Windows
+- CMake 3.21+
+- A C++23 compiler
+
+Build the library, all examples, and the test suite:
+
+```bash
+cmake -S . -B build -DOMNI_BUILD_EXAMPLES=ON -DOMNI_BUILD_TESTS=ON
+cmake --build build --config Release
+```
+
+Useful CMake options:
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `OMNI_BUILD_EXAMPLES` | `ON` for top-level builds | Build every file in `examples/` as a standalone executable |
+| `OMNI_BUILD_TESTS` | `ON` for top-level builds | Build the Windows test suite |
+
+## Testing
+
+The test suite lives in [`tests/`](tests) and builds one `omni_test_<name>` executable per test source, each registered with `CTest`.
+
+Current coverage includes:
+
+- loader iteration and lookup
+- `module` identity and WinAPI-facing properties
+- export table parsing, named/ordinal iteration, and forwarders
+- lazy import success paths, failure paths, typed overloads, and caching
+- syscall resolution, typed/generic wrappers, and cache behavior
+
+Run the suite with CTest:
+
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+If you use a multi-config generator, add `-C Release` or your chosen configuration.
+
+Tests use [`boost.ut`](https://github.com/boost-ext/ut). If it is not already available, CMake fetches it automatically.
+
+## Configuration
+
+`omni` is mostly zero-config, but a few compile-time switches are available:
+
+| Macro | Effect |
+| --- | --- |
+| `OMNI_DISABLE_CACHING` | Disable internal caching for lazy imports and syscall IDs |
+| `OMNI_ENABLE_ERROR_STRINGS` | Keep readable error strings in non-debug builds |
+| `OMNI_DISABLE_ERROR_STRINGS` | Strip error strings even in debug builds |
+
+## Notes
+
+- `syscall` examples assume an x64 Windows process.
+- String literals passed to hash-aware APIs can be converted at compile time through implicit hash constructors.
+- The project is still evolving, so API refinements are expected while the library surface settles.
+- Third-party notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Thanks to `receiver1`, `po0p`, and invers1on for the contributions, ideas, and help around the project.

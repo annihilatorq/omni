@@ -1,0 +1,6 @@
+InheritParentConfig: true
+Checks: >
+  -*-magic-numbers,
+  -*-signed-bitwise,
+  -*-special-member-functions,
+  -*-enum-size,
