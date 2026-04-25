@@ -6,11 +6,16 @@ on:
     paths-ignore: ["**/*.md", "docs/**", "single_header/omni.hpp"]
   workflow_dispatch:
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
     name: Amalgamate omni.hpp
     runs-on: windows-2025-vs2026
     timeout-minutes: 30
+
     permissions:
       contents: write
 
@@ -31,6 +36,10 @@ jobs:
         run: |
           mkdir -p single_header
           quom "include/omni/omni.hpp" "single_header/omni.hpp" -I "include" -e utf-8-sig -t
+
+      - name: Format single-header
+        run: |
+          clang-format -i --style=file --fallback-style=none "single_header/omni.hpp"
 
       - name: Commit and push
         run: |
