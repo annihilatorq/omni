@@ -78,6 +78,10 @@ namespace omni {
 
   } // namespace detail
 
+  inline omni::module base_module() {
+    return *omni::modules{}.begin();
+  }
+
   inline omni::module get_module(concepts::hash auto module_name) {
     omni::modules modules{};
     auto it = modules.find(module_name);

@@ -1,6 +1,5 @@
 ﻿#pragma once
 
-#include <expected>
 #include <iterator>
 #include <ranges>
 
@@ -169,6 +168,8 @@ namespace omni {
   };
 
   static_assert(std::ranges::viewable_range<modules>);
+
+  inline omni::module base_module();
 
   // Overloads to find a loaded module
 

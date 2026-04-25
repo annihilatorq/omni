@@ -25,7 +25,23 @@ ut::suite<"omni::modules"> modules_suite = [] {
     expect(first->native_handle() == executable_handle);
     expect(not first_path.empty());
     expect(not first_path.filename().wstring().empty());
-    expect(std::wcscmp(first_path.c_str(), executable_path.c_str()) == 0);
+    expect(first_path == executable_path);
+  };
+
+  "base_module points at the process image"_test = [] {
+    HMODULE executable_handle = ::GetModuleHandleW(nullptr);
+    auto executable_path = tests::get_module_path(executable_handle);
+
+    omni::module base_module = omni::base_module();
+    auto base_module_path = base_module.system_path();
+
+    expect(executable_handle != nullptr);
+    expect(base_module.present());
+    expect(base_module.base_address() == executable_handle);
+    expect(base_module.native_handle() == executable_handle);
+    expect(not base_module_path.empty());
+    expect(not base_module_path.filename().wstring().empty());
+    expect(base_module_path == executable_path);
   };
 
   "iteration yields unique present modules"_test = [] {
