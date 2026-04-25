@@ -3,10 +3,10 @@ name: Clang Format
 on:
   push:
     branches: ["main"]
-    paths-ignore: ["**/*.md", "docs/**"]
+    paths-ignore: ["**/*.md", "docs/**", "single_header/omni.hpp"]
   pull_request:
     branches: ["main"]
-    paths-ignore: ["**/*.md", "docs/**"]
+    paths-ignore: ["**/*.md", "docs/**", "single_header/omni.hpp"]
   workflow_dispatch:
 
 jobs:
@@ -20,4 +20,5 @@ jobs:
 
       - uses: jidicula/clang-format-action@v4.18.0
         with:
-          clang-format-version: '21'
+          clang-format-version: "21"
+          exclude-regex: "^./single_header/omni\\.hpp$|^single_header/omni\\.hpp$"
