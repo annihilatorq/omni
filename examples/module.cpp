@@ -16,15 +16,8 @@ namespace {
 } // namespace
 
 int main() {
-  auto self = omni::get_module(omni::address{::GetModuleHandleW(nullptr)});
+  auto self = omni::base_module();
   auto kernel32 = omni::get_module(L"kernel32.dll");
-
-  // Normally, this should never happen
-  if (!self.present() || !kernel32.present()) {
-    std::println("Failed to resolve the current image or kernel32.dll");
-    return 1;
-  }
-
   auto* optional_header = self.image()->get_optional_header();
 
   std::println("Current image:");
