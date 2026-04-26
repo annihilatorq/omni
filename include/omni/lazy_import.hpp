@@ -151,7 +151,7 @@ namespace omni {
 
       return *module_export;
 #else
-      omni::module_export fresh_export = omni::get_export(export_name, module);
+      omni::module_export fresh_export = omni::get_export(export_name);
       if (!fresh_export.present()) {
         return std::unexpected(omni::error::export_not_found);
       }
