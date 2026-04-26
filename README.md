@@ -42,7 +42,7 @@ int main() {
 
   std::println("module  : {}", kernel32.name());
   std::println("exports : {}", kernel32.exports().size());
-  std::println("yield   : 0x{:08X}", static_cast<std::uint32_t>(yield_status.value));
+  std::println("yield   : 0x{:08X}", yield_status);
 }
 ```
 
@@ -319,6 +319,7 @@ Useful CMake options:
 | --- | --- | --- |
 | `OMNI_BUILD_EXAMPLES` | `ON` for top-level builds | Build every file in `examples/` as a standalone executable |
 | `OMNI_BUILD_TESTS` | `ON` for top-level builds | Build the Windows test suite |
+| `OMNI_DISABLE_EXCEPTIONS` | `OFF` | Disable C++ exceptions |
 
 ## Testing
 
@@ -355,7 +356,7 @@ Tests use [`boost.ut`](https://github.com/boost-ext/ut). If it is not already av
 ## Notes
 
 - `syscall` examples assume an x64 Windows process.
-- String literals passed to hash-aware APIs can be converted at compile time through implicit hash constructors.
+- The hash arguments of the function are guaranteed to convert the string literal you pass into a number at compile time
 - The project is still evolving, so API refinements are expected while the library surface settles.
 - Third-party notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
