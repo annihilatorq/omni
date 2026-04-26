@@ -440,7 +440,6 @@ struct std::formatter<omni::fnv1a64> : std::formatter<omni::fnv1a64::value_type>
   }
 };
 
-#include <expected>
 #include <iterator>
 #include <ranges>
 
@@ -2244,6 +2243,8 @@ namespace omni {
 
   static_assert(std::ranges::viewable_range<modules>);
 
+  inline omni::module base_module();
+
   // Overloads to find a loaded module
 
   inline omni::module get_module(concepts::hash auto module_name);
@@ -2573,6 +2574,10 @@ namespace omni {
     }
 
   } // namespace detail
+
+  inline omni::module base_module() {
+    return *omni::modules{}.begin();
+  }
 
   inline omni::module get_module(concepts::hash auto module_name) {
     omni::modules modules{};
@@ -3296,9 +3301,9 @@ namespace omni::detail {
 
 #ifdef OMNI_HAS_CACHING
 
-#include <mutex>
-#include <optional>
-#include <unordered_map>
+#  include <mutex>
+#  include <optional>
+#  include <unordered_map>
 
 namespace omni::detail {
 
@@ -4272,4 +4277,3 @@ namespace omni {
   }
 
 } // namespace omni
-
