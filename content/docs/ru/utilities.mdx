@@ -81,7 +81,7 @@ Custom hasher — это небольшой value type, а не просто fre
 - конструироваться из `value_type`;
 - конструироваться из narrow и wide compile-time string literals;
 - конструироваться из hashable runtime views, например `std::string_view`;
-- реализовать `operator()(std::string_view)`, `operator()(std::wstring_view)`, `operator()(std::span<char>)` и `operator()(std::span<wchar_t>)`;
+- реализовать `operator()(omni::concepts::hashable)`;
 - иметь `value()`;
 - поддерживать сравнение с другим hasher и с `value_type`.
 

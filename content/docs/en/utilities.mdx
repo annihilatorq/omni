@@ -81,7 +81,7 @@ Minimal contract:
 - construct from `value_type`;
 - construct from narrow and wide compile-time string literals;
 - construct from hashable runtime views such as `std::string_view`;
-- implement `operator()(std::string_view)`, `operator()(std::wstring_view)`, `operator()(std::span<char>)`, and `operator()(std::span<wchar_t>)`;
+- implement `operator()(omni::concepts::hashable)`;
 - expose `value()`;
 - support comparison with another hasher and with `value_type`.
 
