@@ -70,6 +70,102 @@ auto export_entry = omni::get_export(my_hash{"GetCurrentProcessId"}, my_hash{"ke
 auto result = omni::lazy_import<void, my_hash>(my_hash{"SetLastError"}, 0U);
 ```
 
+### Реализация собственного hasher
+
+Custom hasher — это небольшой value type, а не просто free function. Он хранит вычисленное значение и одновременно может вызываться как runtime hashing functor.
+
+Минимальный контракт:
+
+- определить `using value_type = ...`;
+- предоставить default constructor;
+- конструироваться из `value_type`;
+- конструироваться из narrow и wide compile-time string literals;
+- конструироваться из hashable runtime views, например `std::string_view`;
+- реализовать `operator()(std::string_view)`, `operator()(std::wstring_view)`, `operator()(std::span<char>)` и `operator()(std::span<wchar_t>)`;
+- иметь `value()`;
+- поддерживать сравнение с другим hasher и с `value_type`.
+
+```cpp
+template <std::unsigned_integral T>
+class djb2_hash {
+  constexpr static auto initial_value = T{5381};
+
+ public:
+  using value_type = T;
+
+  constexpr djb2_hash() = default;
+  constexpr explicit(false) djb2_hash(value_type value): value_(value) {}
+
+  template <typename CharT, std::size_t N>
+  consteval explicit(false) djb2_hash(const CharT (&string)[N]) {
+    for (std::size_t i{}; i < N - 1; i++) {
+      value_ = append(value_, string[i]);
+    }
+  }
+
+  consteval explicit(false) djb2_hash(omni::concepts::hashable auto string) {
+    for (std::size_t i{}; i < string.size(); i++) {
+      value_ = append(value_, string[i]);
+    }
+  }
+
+  [[nodiscard]] value_type operator()(omni::concepts::hashable auto object) {
+    auto value = initial_value;
+    for (std::size_t i{}; i < object.size(); i++) {
+      value = append(value, object[i]);
+    }
+    return value;
+  }
+
+  [[nodiscard]] value_type value() const {
+    return value_;
+  }
+
+  [[nodiscard]] constexpr bool operator==(value_type other) const {
+    return value_ == other;
+  }
+
+  [[nodiscard]] constexpr bool operator==(const djb2_hash& other) const {
+    return value_ == other.value_;
+  }
+
+ private:
+  template <typename CharT>
+  [[nodiscard]] constexpr static value_type append(value_type accumulator, CharT character) {
+    return (accumulator * 33) + static_cast<value_type>(to_lower(character));
+  }
+
+  template <typename CharT>
+  [[nodiscard]] constexpr static CharT to_lower(CharT character) {
+    return ((character >= 'A' && character <= 'Z') ? (character + 32) : character);
+  }
+
+  value_type value_{initial_value};
+};
+
+using djb2_64 = djb2_hash<std::uint64_t>;
+static_assert(omni::concepts::hash<djb2_64>);
+```
+
+### Передача custom hasher в omni APIs
+
+Когда тип удовлетворяет `omni::concepts::hash`, передавайте его либо как тип hash value, либо как явный template parameter `Hasher`.
+
+```cpp
+using my_hash = djb2_64;
+
+auto kernel32 = omni::get_module(my_hash{L"kernel32.dll"});
+auto export_entry = omni::get_export(my_hash{"GetCurrentProcessId"}, my_hash{"kernel32.dll"});
+
+using get_current_process_id_fn = DWORD(WINAPI*)();
+auto process_id = omni::lazy_import<get_current_process_id_fn, my_hash>(my_hash{"GetCurrentProcessId"});
+
+auto status = omni::syscall<omni::status, my_hash>(my_hash{"NtYieldExecution"});
+constexpr omni::hash_pair<my_hash> pair{"GetModuleHandleW", "kernel32.dll"};
+```
+
+Используйте один и тот же hasher во всей lookup chain. Например, не стоит создавать `hash_pair<my_hash>` и затем сравнивать его с `omni::default_hash` values.
+
 ## Concepts
 
 Public concepts находятся в `omni/concepts.hpp`:
