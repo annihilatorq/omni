@@ -1,11 +1,11 @@
 ---
 title: Exports
-description: Поиск, итерация и разрешение экспортов PE-модулей
+description: Поиск, итерация и resolution PE exports
 ---
 
-## `omni::use_ordinal_t`
+## Ordinal lookup
 
-Маркерный тип для overloads поиска по ordinal.
+`omni::use_ordinal_t` и `omni::use_ordinal` выбирают overloads для поиска по ordinal:
 
 ```cpp
 auto exp = omni::get_export(1, L"ntdll.dll", omni::use_ordinal);
@@ -13,77 +13,46 @@ auto exp = omni::get_export(1, L"ntdll.dll", omni::use_ordinal);
 
 ## `omni::forwarder_string`
 
-Представление forwarded export в виде пары:
+Представляет forwarded export string как части `module` и `function`.
 
-- `module`
-- `function`
-
-### Методы
-
-| Метод | Назначение |
+| Method | Purpose |
 | --- | --- |
-| `parse(string_view)` | разобрать строку вида `module.function` |
-| `is_ordinal()` | проверить, что forward указывает на ordinal |
-| `to_ordinal()` | извлечь ordinal |
-| `present()` | проверить, что обе части непустые |
+| `parse(string_view)` | разобрать `module.function` |
+| `is_ordinal()` | проверить, указывает ли target на ordinal |
+| `to_ordinal()` | преобразовать target в ordinal |
+| `present()` | проверить, что обе части не пустые |
 
 ## `omni::module_export`
 
-Описание одного экспорта.
+| Field | Meaning |
+| --- | --- |
+| `name` | имя export, пустое для ordinal-only exports |
+| `address` | resolved address или raw forwarded address |
+| `ordinal` | export ordinal |
+| `is_forwarded` | является ли export forwarder |
+| `forwarder_string` | parsed forwarder target |
+| `forwarder_api_set` | API-set contract data для API-set forwarders |
+| `module_base` | base address owning module |
 
-### Поля
-
-- `name`
-- `address`
-- `ordinal`
-- `is_forwarded`
-- `forwarder_string`
-- `module_base`
-
-### Методы
-
-- `is_ordinal_only()`
-- `present()`
-- `operator bool()`
+Methods: `is_ordinal_only()`, `present()` и `operator bool()`. Для форматирования доступен `std::formatter<omni::module_export>`.
 
 ## `omni::module_exports`
 
-API для export table конкретного модуля.
-
-### Основные методы
-
-| Метод | Назначение |
+| Method | Purpose |
 | --- | --- |
-| `size()` | число экспортируемых функций |
-| `directory()` | указатель на export directory |
-| `name(index)` | имя экспорта по function index |
-| `ordinal(index)` | ordinal по index |
-| `address(index)` | адрес экспорта |
-| `is_export_forwarded(address)` | проверить forwarded export |
-| `all()` | range по всем экспортам |
-| `ordinal()` | range по ordinal exports |
+| `size()`, `directory()` | metadata export table |
+| `name(index)`, `ordinal(index)`, `address(index)` | чтение raw entries по index |
+| `is_export_forwarded(address)` | проверить, указывает ли address на forwarder string |
+| `all()` | range по всем exports |
+| `ordinal()` | range по ordinal slots |
 | `named()` | range по named exports |
-| `find(export_name_hash)` | найти по hashed name |
-| `find(ordinal, omni::use_ordinal)` | найти по ordinal |
-| `find_if(predicate)` | найти по предикату |
+| `find(export_name_hash)` | поиск по name/hash |
+| `find(ordinal, omni::use_ordinal)` | поиск по ordinal |
+| `find_if(predicate)` | поиск по predicate |
 
-### Range-итерация
+## Free lookup
 
-`omni::module_exports` и его под-range можно использовать как обычные C++ ranges.
-
-```cpp
-auto kernel32 = omni::get_module(L"kernel32.dll");
-
-for (const auto& export_entry : kernel32.exports().named()) {
-  std::println("{}", export_entry.name);
-}
-```
-
-## `omni::get_export`
-
-Возвращает `omni::module_export` или пустой результат.
-
-### Overloads
+`omni::get_export` возвращает заполненный `omni::module_export` или empty value.
 
 - `omni::get_export(export_name_hash, omni::module module)`
 - `omni::get_export(export_name_hash, module_name_hash)`
@@ -91,26 +60,17 @@ for (const auto& export_entry : kernel32.exports().named()) {
 - `omni::get_export(ordinal, omni::module module, omni::use_ordinal)`
 - `omni::get_export(ordinal, module_name_hash, omni::use_ordinal)`
 
-### Особенности
+Forwarders разбираются в явные fields. Если target module загружен, lookup может вернуть final target; иначе export остается readable forwarder data.
 
-- если экспорт forwarded, библиотека пытается разрешить конечную цель автоматически;
-- если целевой модуль forwarder-а не загружен, результат может остаться forwarded export без конечного адреса.
-
-## `omni::try_get_export`
-
-То же, что `get_export`, но с диагностикой через `std::expected<module_export, std::error_code>`.
-
-### Возможные ошибки
-
-- `omni::error::module_not_loaded`
-- `omni::error::export_not_found`
-- `omni::error::forwarder_string_invalid`
-
-### Пример
+## Пример
 
 ```cpp
-auto result = omni::try_get_export("GetCurrentProcessId", L"kernel32.dll");
-if (!result) {
-  std::println("{}", result.error().message());
+auto kernel32 = omni::get_module(L"kernel32.dll");
+
+for (const auto& export_entry : kernel32.exports().named() | std::views::take(5)) {
+  std::println("{}", export_entry.name);
 }
+
+auto by_name = kernel32.exports().find("GetCurrentProcessId");
+auto by_ordinal = kernel32.exports().find(1, omni::use_ordinal);
 ```

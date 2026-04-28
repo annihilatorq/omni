@@ -1,0 +1,82 @@
+---
+title: API Sets
+description: Inspection Windows API-set schema через omni
+---
+
+## Overview
+
+Windows API sets сопоставляют contract DLL names с implementation DLLs. `omni` предоставляет live process schema как небольшие range-friendly value objects.
+
+## `omni::api_set_host`
+
+Host entry описывает одно implementation mapping.
+
+| Field or method | Purpose |
+| --- | --- |
+| `value` | имя implementation DLL |
+| `alias` | alias selector, пустой для default host |
+| `present()` | проверяет, что `value` не пустой |
+| `is_default()` | проверяет, что `alias` пустой |
+
+## `omni::api_set_hosts`
+
+Forward range по host entries одного API-set contract.
+
+| Method | Purpose |
+| --- | --- |
+| `begin()`, `end()` | итерация по hosts |
+| `size()` | количество hosts |
+
+## `omni::api_set`
+
+Представляет один API-set contract.
+
+| Method | Purpose |
+| --- | --- |
+| `contract_name()` | возвращает contract name |
+| `is_sealed()` | проверяет schema sealed flag |
+| `hosts()` | возвращает `omni::api_set_hosts` |
+| `default_host()` | возвращает default host, если он есть |
+| `resolve_host(alias = {})` | применяет API-set resolution rules для alias |
+| `present()`, `operator bool()` | проверяют валидность |
+
+## `omni::api_sets`
+
+Bidirectional range по API-set schema текущего процесса.
+
+| Method | Purpose |
+| --- | --- |
+| `begin()`, `end()` | итерация по API-set contracts |
+| `size()` | количество contracts |
+| `find(contract_name_hash)` | поиск contract по hash/name |
+| `find_if(predicate)` | поиск по predicate |
+
+`omni::get_api_set(contract_name_hash)` — convenience function, возвращающая `omni::api_set`.
+
+## Пример
+
+```cpp
+#include "omni/api_sets.hpp"
+
+#include <print>
+#include <ranges>
+
+int main() {
+  omni::api_sets api_sets{};
+
+  auto api_set = api_sets.find_if([](const omni::api_set& item) {
+    return item.default_host().has_value();
+  });
+
+  if (api_set == api_sets.end()) {
+    return 1;
+  }
+
+  std::println("contract: {}", api_set->contract_name());
+  std::println("sealed  : {}", api_set->is_sealed());
+
+  for (const auto& host : api_set->hosts() | std::views::take(5)) {
+    std::println("{} -> {}", host.alias.empty() ? L"<default>" : host.alias, host.value);
+  }
+}
+```

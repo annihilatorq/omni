@@ -1,38 +1,24 @@
 ---
 title: Utilities
-description: Базовые типы, хеширование и модель ошибок omni
+description: Базовые типы, хеширование, concepts и модель ошибок omni
 ---
 
 ## `omni::address`
 
-Тип-обёртка над адресом в памяти.
+`omni::address` — небольшая обёртка над адресом в памяти.
 
-### Конструирование
-
-- из `nullptr`;
-- из `std::uintptr_t`;
-- из обычного указателя;
-- из contiguous range.
-
-### Основные методы
-
-| Метод | Назначение |
+| API | Назначение |
 | --- | --- |
-| `ptr<T>(offset = 0)` | вернуть typed pointer по адресу со смещением |
-| `value()` | вернуть `std::uintptr_t` |
-| `offset<T>(delta = 0)` | получить адрес или указатель со смещением |
-| `as<T>()` | привести адрес к нужному типу |
+| constructors | из `nullptr`, `std::uintptr_t`, pointer или contiguous range |
+| `ptr<T>(offset = 0)` | вернуть typed pointer со смещением |
+| `value()` | вернуть raw `std::uintptr_t` |
+| `offset<T>(delta = 0)` | получить адрес или pointer со смещением |
+| `as<T>()` | привести адрес к другому типу |
 | `span<T>(count)` | представить память как `std::span` |
-| `is_in_range(start, end)` | проверить, попадает ли адрес в диапазон |
-| `invoke<T>(args...)` | вызвать адрес как `__stdcall` функцию |
+| `is_in_range(start, end)` | проверить, находится ли адрес в range |
+| `invoke<T>(args...)` | вызвать адрес как функцию |
 
-### Поведение
-
-- поддерживает `operator bool()`;
-- поддерживает сравнение;
-- поддерживает `+`, `-`, `&`, `|`, `^`, `<<`, `>>`.
-
-### Пример
+Тип поддерживает explicit boolean conversion, comparisons, arithmetic и bitwise operators, stream output и `std::formatter<omni::address>`.
 
 ```cpp
 omni::address base{::GetModuleHandleW(nullptr)};
@@ -42,93 +28,66 @@ auto entry = base.offset(0x1000);
 
 ## Hash API
 
-### Типы
+### Types and functions
 
 - `omni::fnv1a32`
 - `omni::fnv1a64`
-- `omni::default_hash`
-- `omni::hash_pair<Hasher>`
+- `omni::default_hash`, alias для `omni::fnv1a64`
+- `omni::hash_pair<Hasher = default_hash>`
+- `omni::hash<Hasher>(value)`
 
-`omni::default_hash` — это alias для `omni::fnv1a64`.
-
-### `omni::hash<T>(value)`
-
-Вычисляет хеш через выбранный hasher.
+Hashes являются ASCII case-insensitive, что удобно для Windows module и export names.
 
 ```cpp
-auto kernel32_hash = omni::hash<omni::default_hash>(L"kernel32.dll");
+constexpr omni::fnv1a64 kernel32{"kernel32.dll"};
 auto export_hash = omni::hash<omni::fnv1a32>("GetCurrentProcessId");
+constexpr omni::hash_pair<> lookup{"GetSystemDirectoryW", "kernel32.dll"};
 ```
 
-### `omni::hash_pair<Hasher>`
+### Literals
 
-Используется там, где нужно передать сразу имя экспорта и имя модуля.
+Namespace `omni::literals` предоставляет string literal operators для narrow и wide strings:
 
-```cpp
-auto pair = omni::hash_pair{
-  omni::default_hash{"GetSystemDirectoryW"},
-  omni::default_hash{"kernel32.dll"},
-};
-```
+- `"..."_fnv1a32`
+- `"..."_fnv1a64`
+- `"..."_hash`
 
-### Переопределение hash policy
+### Formatting
 
-Почти весь hash-aware API в `omni` шаблонизирован по `Hasher`, а `omni::default_hash` — это только значение по умолчанию.
+`std::formatter` доступен для `omni::fnv1a32` и `omni::fnv1a64`.
 
-Это значит, что пользователь может:
+## Custom hash policies
 
-- использовать собственный hash type вместо `omni::default_hash`;
-- вызывать `get_export`, `try_get_export`, `lazy_import`, `lazy_importer`, `syscall`, `syscaller` с другим hasher;
-- комбинировать compile-time function pointer overloads с собственным hasher.
+Большая часть hash-aware API шаблонизирована по `Hasher`. Один и тот же policy можно использовать с modules, exports, lazy imports и syscalls.
 
-Свой hasher должен удовлетворять `omni::concepts::hash`, то есть уметь:
-
-- хешировать `std::string_view`, `std::wstring_view`, `std::span<char>`, `std::span<wchar_t>`;
-- возвращать собственный `value_type`;
-- поддерживать `value()`, сравнение и конструирование из строк/значения.
-
-### Пример custom hasher
+Hasher должен удовлетворять `omni::concepts::hash`: иметь `value_type`, `value()`, comparisons, construction from strings/values и hashing для поддерживаемых string или span inputs.
 
 ```cpp
 using my_hash = omni::fnv1a32;
 
 auto module = omni::get_module(my_hash{L"kernel32.dll"});
-auto export_entry = omni::get_export<my_hash>(my_hash{"GetCurrentProcessId"}, my_hash{"kernel32.dll"});
+auto export_entry = omni::get_export(my_hash{"GetCurrentProcessId"}, my_hash{"kernel32.dll"});
 auto result = omni::lazy_import<void, my_hash>(my_hash{"SetLastError"}, 0U);
 ```
 
-### Где это особенно полезно
+## Concepts
 
-- если нужно уменьшить размер hash value;
-- если проект уже стандартизован на своём hash type;
-- если важно сохранить единый hashing policy во всём коде.
+Public concepts находятся в `omni/concepts.hpp`:
 
-## Другие точки кастомизации API
-
-Кроме выбора hasher, в публичном API есть и другие точки настройки:
-
-- `omni::lazy_import<Func, ModuleName, Hasher>(...)` — выбор одновременно function pointer, module name и hasher;
-- `omni::syscall<Func, Hasher>(...)` — typed syscall вызов с custom hasher;
-- `omni::nt_allocator<T, AllocFlags, Protect>` — настройка allocation flags и page protection;
-- compile-time macros `OMNI_DISABLE_CACHING`, `OMNI_ENABLE_ERROR_STRINGS`, `OMNI_DISABLE_ERROR_STRINGS`.
+- `omni::concepts::hash`
+- `omni::concepts::hashable`
+- `omni::concepts::function_pointer`
 
 ## Error API
 
-### `enum class omni::error`
-
-Поддерживаемые ошибки библиотеки:
+Значения `enum class omni::error`:
 
 - `module_not_loaded`
 - `export_not_found`
 - `syscall_id_not_found`
 - `forwarder_string_invalid`
 
-### Интеграция со `std::error_code`
-
-- `omni::error_category()`
-- `omni::make_error_code(omni::error)`
-
-Благодаря специализации `std::is_error_code_enum<omni::error>`, ошибки можно использовать как обычные `std::error_code`.
+Ошибки интегрируются с `std::error_code` через `omni::error_category()`, `omni::make_error_code()` и standard `std::is_error_code_enum` specialization.
 
 ```cpp
 std::error_code ec = omni::error::export_not_found;

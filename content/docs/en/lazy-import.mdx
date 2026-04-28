@@ -3,42 +3,38 @@ title: Lazy Import
 description: Resolve and call WinAPI exports without direct linking
 ---
 
+## Overview
+
+Lazy import resolves an export at the call site, so the target executable does not need to link against the import library directly. You can use short free functions for one-off calls or `omni::lazy_importer<T>` when you want typed reuse and metadata.
+
 ## `omni::lazy_importer<T>`
 
-A typed wrapper for export lookup and subsequent invocation.
+The generic form returns `T`. Function-pointer specializations infer parameter and return types from the signature.
 
 ### Constructors
 
-- from `export_name_hash`;
-- from a pair of `export_name_hash` and `module_name_hash`.
+- `lazy_importer(export_name_hash)`
+- `lazy_importer(default_hash)`
+- `lazy_importer(export_name_hash, module_name_hash)`
+- `lazy_importer(default_hash, default_hash)`
 
-### Main methods
+### Methods
 
 | Method | Returns | Purpose |
 | --- | --- | --- |
 | `try_invoke(args...)` | `std::expected<T, std::error_code>` | invoke with diagnostics |
-| `invoke(args...)` | `T` | invoke without explicit error handling |
-| `operator()(args...)` | `T` | shorthand invocation |
-| `module_export()` | `omni::module_export` | return found export metadata |
-
-If the export is not resolved, `invoke()` returns a default-constructed `T`, and `try_invoke()` returns an error.
+| `invoke(args...)` | `T` | invoke and return default value on failure |
+| `operator()(args...)` | `T` | shorthand for `invoke` |
+| `module_export()` | `omni::module_export` | inspect resolved export metadata |
 
 ## `omni::lazy_import`
 
-A set of free overloads for short API calls.
+Free overloads cover the common call styles:
 
-### By name/hash
-
-- `omni::lazy_import<T>(export_name_hash, args...)`
-- `omni::lazy_import<T>(omni::hash_pair<>{export, module}, args...)`
-
-### By function signature
-
+- `omni::lazy_import<T = void>(export_name_hash, args...)`
+- `omni::lazy_import<T = void>(hash_pair, args...)`
 - `omni::lazy_import<F>(export_name_hash, args...)`
-- `omni::lazy_import<F>(omni::hash_pair<>{export, module}, args...)`
-
-### By compile-time function pointer
-
+- `omni::lazy_import<F>(hash_pair, args...)`
 - `omni::lazy_import<Func, Hasher>(args...)`
 - `omni::lazy_import<Func>(args...)`
 - `omni::lazy_import<Func, ModuleName, Hasher>(args...)`
@@ -46,40 +42,40 @@ A set of free overloads for short API calls.
 
 ## Examples
 
-### Generic return type
-
-```cpp
-auto process_id = omni::lazy_import<DWORD>("GetCurrentProcessId");
-```
-
 ### Typed importer
 
 ```cpp
 using get_module_handle_w_fn = HMODULE(WINAPI*)(LPCWSTR);
-auto get_module_handle = omni::lazy_importer<get_module_handle_w_fn>{"GetModuleHandleW"};
 
-HMODULE handle = get_module_handle(L"kernel32.dll");
+auto get_module_handle = omni::lazy_importer<get_module_handle_w_fn>{"GetModuleHandleW"};
+HMODULE kernel32 = get_module_handle(L"kernel32.dll");
 auto export_entry = get_module_handle.module_export();
 ```
 
-### Export + module pair
+### Export and module pair
 
 ```cpp
-auto system_dir = omni::lazy_import<UINT(WINAPI*)(LPWSTR, UINT)>(
+using get_system_directory_w_fn = UINT(WINAPI*)(LPWSTR, UINT);
+
+auto length = omni::lazy_import<get_system_directory_w_fn>(
   {"GetSystemDirectoryW", "kernel32.dll"},
   buffer.data(),
   static_cast<UINT>(buffer.size())
 );
 ```
 
-## Errors
+### Compile-time function pointer
 
-`try_invoke()` uses the same `std::error_code` values as the export-resolution API:
+```cpp
+auto process_id = omni::lazy_import<::GetCurrentProcessId>();
+```
 
-- `module_not_loaded`
-- `export_not_found`
-- `forwarder_string_invalid`
+### Generic return type
 
-## Caching
+```cpp
+omni::lazy_import<void>("SetLastError", 0xCAFEU);
+```
 
-Unless `OMNI_DISABLE_CACHING` is defined, resolved exports are cached. The library also checks that the owning module is still loaded and refreshes stale cache entries.
+## Errors and caching
+
+`try_invoke()` can report `module_not_loaded`, `export_not_found`, or `forwarder_string_invalid`. Unless `OMNI_DISABLE_CACHING` is defined, resolved exports are cached and stale entries are refreshed when the owning module is no longer loaded.

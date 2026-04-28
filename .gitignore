@@ -29,3 +29,4 @@ Thumbs.db
 # package manager
 /.pnp
 .pnp.js
+omni-lib/

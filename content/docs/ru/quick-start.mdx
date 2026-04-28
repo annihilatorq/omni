@@ -3,9 +3,9 @@ title: Быстрый старт
 description: Быстрый старт с omni и обзор основных сценариев использования
 ---
 
-## Подключение
+## Интеграция
 
-`omni` — header-only библиотека. Достаточно добавить директорию проекта в CMake и подключить target `omni::omni`.
+`omni` — header-only библиотека. Достаточно добавить директорию проекта в CMake и подключить exported target:
 
 ```cmake
 add_subdirectory(path/to/omni)
@@ -39,42 +39,38 @@ int main() {
 }
 ```
 
-## Области API
+## Разделы API
 
 | Раздел | Основные сущности |
 | --- | --- |
 | Utilities | `omni::address`, `omni::fnv1a32`, `omni::fnv1a64`, `omni::default_hash`, `omni::error` |
 | Status | `omni::status`, `omni::severity`, `omni::facility`, `omni::ntstatus` |
-| Modules | `omni::module`, `omni::modules`, `omni::get_module` |
-| Exports | `omni::module_export`, `omni::module_exports`, `omni::get_export`, `omni::try_get_export` |
+| Modules | `omni::module`, `omni::modules`, `omni::base_module`, `omni::get_module` |
+| Exports | `omni::module_export`, `omni::module_exports`, `omni::get_export` |
+| API Sets | `omni::api_set`, `omni::api_sets`, `omni::api_set_host`, `omni::get_api_set` |
 | Lazy Import | `omni::lazy_importer`, `omni::lazy_import` |
-| Syscalls | `omni::syscaller`, `omni::syscall` |
+| Syscalls | `omni::syscaller`, `omni::syscall`, `omni::default_syscall_id_parser` |
 | Shared Data | `omni::shared_user_data`, `omni::win::kernel_user_shared_data` |
 | Memory | `omni::nt_allocator`, `omni::rw_allocator`, `omni::rx_allocator`, `omni::rwx_allocator` |
 
-## Конфигурация
+## Сборка examples и tests
 
-Поддерживаются compile-time switches:
+```bash
+cmake -S . -B build -DOMNI_BUILD_EXAMPLES=ON -DOMNI_BUILD_TESTS=ON
+cmake --build build --config Release
+ctest --test-dir build --output-on-failure -C Release
+```
 
-| Макрос | Эффект |
+## Configuration macros
+
+| Macro | Effect |
 | --- | --- |
-| `OMNI_DISABLE_CACHING` | отключает внутренний cache для lazy import и syscall IDs |
-| `OMNI_ENABLE_ERROR_STRINGS` | сохраняет строковые описания ошибок в non-debug сборках |
-| `OMNI_DISABLE_ERROR_STRINGS` | убирает строковые описания ошибок даже в debug |
+| `OMNI_DISABLE_CACHING` | отключает internal cache для lazy imports и syscall IDs |
+| `OMNI_ENABLE_ERROR_STRINGS` | сохраняет readable error strings в non-debug builds |
+| `OMNI_DISABLE_ERROR_STRINGS` | удаляет error strings даже в debug builds |
 
-## Расширяемость
-
-Публичный API `omni` не зафиксирован только на одном стиле использования. Основные точки расширения:
-
-- custom hash type вместо `omni::default_hash`;
-- typed и compile-time overloads у `lazy_import` и `syscall`;
-- настройка allocator policy через `AllocFlags` и `Protect`;
-- compile-time feature toggles через макросы.
-
-Если нужен единый взгляд на эти возможности, смотри раздел `Utilities`, где отдельно описана замена hash policy и связанные точки кастомизации.
-
-## Ограничения
+## Notes
 
 - библиотека ориентирована на Windows;
-- `syscall` API рассчитан на x64;
-- строковые литералы в hash-aware overloads могут конвертироваться в hash типы на compile time.
+- syscall API рассчитан на x64 process;
+- hash-aware overloads принимают строго типизированные hash values и string literals, конвертируемые на compile time.

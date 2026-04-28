@@ -5,89 +5,60 @@ description: Access to the loader list and loaded modules through omni
 
 ## `omni::module`
 
-A representation of a single loaded module.
-
-### Main methods
+`omni::module` is a lightweight view of one loaded image from the process loader list.
 
 | Method | Purpose |
 | --- | --- |
-| `entry()` | return a pointer to the loader entry |
-| `loader_entry()` | const access to the loader entry |
-| `image()` | return `win::image*` |
-| `base_address()` | module base address |
-| `native_handle()` | `void*` handle/base address |
-| `entry_point()` | entry point address |
-| `name()` | ANSI module name |
-| `wname()` | wide module name |
-| `system_path()` | full path to the module |
+| `entry()`, `loader_entry()` | access the underlying loader entry |
+| `image()` | return `win::image*` for PE header access |
+| `base_address()`, `native_handle()` | return the module base address |
+| `entry_point()` | return the image entry point |
+| `name()`, `wname()` | return ANSI or wide module names |
+| `system_path()` | return the full module path |
 | `exports()` | return `omni::module_exports` |
-| `present()` | validity check |
+| `present()`, `operator bool()` | check whether the module view is valid |
 | `matches_name_hash(hash)` | compare against a hashed module name |
 
-#### Module metadata
-
-`omni::module` gives access to the identity and PE structure of the loaded image:
-
-- `entry()` and `loader_entry()` return the loader entry;
-- `image()` returns `win::image*`;
-- `base_address()`, `native_handle()`, and `entry_point()` expose addresses;
-- `name()`, `wname()`, and `system_path()` return module naming and path data.
-
-### Example
-
-```cpp
-auto kernel32 = omni::get_module(L"kernel32.dll");
-
-if (kernel32) {
-  std::println("{}", kernel32.name());
-  std::println("{:#x}", kernel32.base_address().value());
-}
-```
+`std::formatter<omni::module>` and stream output are available for formatting.
 
 ## `omni::modules`
 
-A process module range over the PEB loader list.
-
-### Main capabilities
+`omni::modules` is a bidirectional range over the PEB loader list.
 
 | Method | Purpose |
 | --- | --- |
-| `begin()`, `end()` | range iteration |
-| `skip(count)` | skip the first elements |
-| `find(module_name_hash)` | find by name |
-| `find(base_address)` | find by base address |
-| `find_if(predicate)` | find by predicate |
-| `contains(module_name_hash)` | check presence by name |
-| `contains(base_address)` | check presence by address |
+| `begin()`, `end()` | iterate loaded modules |
+| `skip(count = 1)` | skip initial loader-list entries |
+| `find(module_name_hash)` | find by module name hash |
+| `find(omni::address)` | find by base address |
+| `find_if(predicate)` | find by custom predicate |
+| `contains(...)` | check whether a module is loaded |
 
-#### Iteration and lookup
+## Convenience functions
 
-`omni::modules` behaves like a normal C++ range and fits:
+- `omni::base_module()` returns the current process image module.
+- `omni::get_module(module_name_hash)` finds a loaded module by name.
+- `omni::get_module(omni::address)` finds a module by base address.
 
-- full loader list iteration;
-- filtering with `std::views`;
-- looking up modules by name, base address, or arbitrary predicate.
+Name matching accepts both `kernel32.dll` and `kernel32` when the actual module name has a `.dll` suffix.
 
-### Example
+## Example
 
 ```cpp
-omni::modules loaded_modules{};
+#include "omni/modules.hpp"
 
-for (const auto& module : loaded_modules) {
-  std::println("{}", module.name());
+#include <print>
+#include <ranges>
+
+int main() {
+  auto self = omni::base_module();
+  auto kernel32 = omni::get_module(L"kernel32.dll");
+
+  std::println("current image: {}", self.name());
+  std::println("kernel32 base: {:#x}", kernel32.base_address().value());
+
+  for (const auto& module : omni::modules{} | std::views::take(5)) {
+    std::println("{}", module.name());
+  }
 }
 ```
-
-## `omni::get_module`
-
-Convenience overloads for getting a module:
-
-- `omni::get_module(module_name_hash)`
-- `omni::get_module(default_hash)`
-- `omni::get_module(omni::address base_address)`
-
-If the module is not found, an empty `omni::module` is returned.
-
-## Module naming
-
-`matches_name_hash()` and `get_module()` handle both the full name (`kernel32.dll`) and the name without the `.dll` suffix (`kernel32`), if the module really has a DLL suffix.

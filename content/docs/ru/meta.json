@@ -7,6 +7,7 @@
     "status",
     "modules",
     "exports",
+    "api-sets",
     "lazy-import",
     "syscalls",
     "shared-user-data",

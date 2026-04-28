@@ -1,11 +1,11 @@
 ---
 title: Allocator
-description: Memory allocator based on NtAllocateVirtualMemory and NtFreeVirtualMemory
+description: Standard allocator interface backed by NtAllocateVirtualMemory
 ---
 
-## Namespace `omni::mem`
+## Constants
 
-Allocation type constants:
+`omni::mem` contains allocation flags:
 
 - `commit`
 - `reserve`
@@ -13,9 +13,7 @@ Allocation type constants:
 - `large_commit`
 - `release`
 
-## Namespace `omni::mem::page`
-
-Page protection constants:
+`omni::mem::page` contains page-protection flags:
 
 - `no_access`
 - `read_only`
@@ -29,39 +27,29 @@ Page protection constants:
 
 ## `omni::nt_allocator<T, AllocFlags, Protect>`
 
-An allocator that uses:
-
-- `NtAllocateVirtualMemory`
-- `NtFreeVirtualMemory`
-
-### Main methods
+A standard allocator-compatible type backed by `NtAllocateVirtualMemory` and `NtFreeVirtualMemory`.
 
 | Method | Purpose |
 | --- | --- |
-| `allocate(n)` | allocate memory for `n` elements |
-| `allocate(address, n)` | attempt to allocate memory at a specific address |
-| `deallocate(ptr, n)` | free memory |
+| `allocate(n)` | allocate storage for `n` elements |
+| `allocate(address, n)` | request allocation at a specific address |
+| `deallocate(ptr, n)` | release storage |
 
-### Error behavior
-
-- if exceptions are enabled, `allocate()` throws `std::bad_alloc`;
-- otherwise execution terminates via `std::abort()`.
+The allocator exposes the usual allocator typedefs, `rebind`, equality operators, and `is_always_equal`. On allocation failure it throws `std::bad_alloc` when exceptions are enabled; otherwise it terminates.
 
 ## Aliases
 
-- `omni::rw_allocator<T>` — read/write
-- `omni::rx_allocator<T>` — execute/read
-- `omni::rwx_allocator<T>` — execute/read/write
+- `omni::rw_allocator<T>` — read/write memory
+- `omni::rx_allocator<T>` — execute/read memory
+- `omni::rwx_allocator<T>` — execute/read/write memory
 
 ## Example
 
 ```cpp
-std::vector<std::byte, omni::rw_allocator<std::byte>> buffer;
-buffer.resize(4096);
+auto allocator = omni::rw_allocator<std::byte>{};
+auto* page = allocator.allocate(4096);
+auto view = std::span<std::byte>{page, 4096};
+
+std::ranges::fill(view, std::byte{0});
+allocator.deallocate(page, 4096);
 ```
-
-## Notes
-
-- the allocator depends on correct resolution of the `NtAllocateVirtualMemory` and `NtFreeVirtualMemory` exports;
-- if resolution of these exports fails, allocation cannot succeed;
-- the API is intended for Windows-specific memory management scenarios.

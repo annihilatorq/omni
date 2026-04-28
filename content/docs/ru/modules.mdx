@@ -1,93 +1,64 @@
 ---
 title: Modules
-description: Доступ к loader list и loaded modules через omni
+description: Доступ к loader list и загруженным модулям через omni
 ---
 
 ## `omni::module`
 
-Представление одного загруженного модуля.
+`omni::module` — lightweight view одного загруженного image из process loader list.
 
-### Основные методы
-
-| Метод | Назначение |
+| Method | Purpose |
 | --- | --- |
-| `entry()` | вернуть указатель на loader entry |
-| `loader_entry()` | const доступ к loader entry |
-| `image()` | вернуть `win::image*` |
-| `base_address()` | базовый адрес модуля |
-| `native_handle()` | `void*` handle/base address |
-| `entry_point()` | адрес entry point |
-| `name()` | ANSI имя модуля |
-| `wname()` | wide имя модуля |
-| `system_path()` | полный путь к модулю |
-| `exports()` | вернуть `omni::module_exports` |
-| `present()` | проверка валидности |
-| `matches_name_hash(hash)` | сравнение с hashed module name |
+| `entry()`, `loader_entry()` | доступ к underlying loader entry |
+| `image()` | возвращает `win::image*` для доступа к PE headers |
+| `base_address()`, `native_handle()` | возвращают base address модуля |
+| `entry_point()` | возвращает image entry point |
+| `name()`, `wname()` | возвращают ANSI или wide module names |
+| `system_path()` | возвращает полный путь к модулю |
+| `exports()` | возвращает `omni::module_exports` |
+| `present()`, `operator bool()` | проверяют валидность module view |
+| `matches_name_hash(hash)` | сравнивает с hashed module name |
 
-#### Метаданные модуля
-
-`omni::module` даёт доступ к идентичности и PE-структуре загруженного образа:
-
-- `entry()` и `loader_entry()` возвращают loader entry;
-- `image()` возвращает `win::image*`;
-- `base_address()`, `native_handle()` и `entry_point()` дают доступ к адресам;
-- `name()`, `wname()` и `system_path()` возвращают имя и путь модуля.
-
-### Пример
-
-```cpp
-auto kernel32 = omni::get_module(L"kernel32.dll");
-
-if (kernel32) {
-  std::println("{}", kernel32.name());
-  std::println("{:#x}", kernel32.base_address().value());
-}
-```
+Для форматирования доступны `std::formatter<omni::module>` и stream output.
 
 ## `omni::modules`
 
-Range по модулям процесса из PEB loader list.
+`omni::modules` — bidirectional range поверх PEB loader list.
 
-### Основные возможности
-
-| Метод | Назначение |
+| Method | Purpose |
 | --- | --- |
-| `begin()`, `end()` | range iteration |
-| `skip(count)` | пропустить первые элементы |
-| `find(module_name_hash)` | поиск по имени |
-| `find(base_address)` | поиск по base address |
-| `find_if(predicate)` | поиск по предикату |
-| `contains(module_name_hash)` | проверка наличия по имени |
-| `contains(base_address)` | проверка наличия по адресу |
+| `begin()`, `end()` | итерация по загруженным модулям |
+| `skip(count = 1)` | пропустить начальные entries loader list |
+| `find(module_name_hash)` | поиск по hash имени модуля |
+| `find(omni::address)` | поиск по base address |
+| `find_if(predicate)` | поиск по custom predicate |
+| `contains(...)` | проверка, загружен ли модуль |
 
-#### Итерация и поиск
+## Convenience functions
 
-`omni::modules` работает как обычный C++ range и подходит для:
+- `omni::base_module()` возвращает module текущего process image.
+- `omni::get_module(module_name_hash)` ищет загруженный module по имени.
+- `omni::get_module(omni::address)` ищет module по base address.
 
-- полного обхода loader list;
-- фильтрации через `std::views`;
-- поиска модулей по имени, base address или произвольному predicate.
+Name matching принимает и `kernel32.dll`, и `kernel32`, если фактическое имя модуля имеет суффикс `.dll`.
 
-### Пример
+## Пример
 
 ```cpp
-omni::modules loaded_modules{};
+#include "omni/modules.hpp"
 
-for (const auto& module : loaded_modules) {
-  std::println("{}", module.name());
+#include <print>
+#include <ranges>
+
+int main() {
+  auto self = omni::base_module();
+  auto kernel32 = omni::get_module(L"kernel32.dll");
+
+  std::println("current image: {}", self.name());
+  std::println("kernel32 base: {:#x}", kernel32.base_address().value());
+
+  for (const auto& module : omni::modules{} | std::views::take(5)) {
+    std::println("{}", module.name());
+  }
 }
 ```
-
-## `omni::get_module`
-
-Удобные overloads для получения модуля:
-
-- `omni::get_module(module_name_hash)`
-- `omni::get_module(default_hash)`
-- `omni::get_module(omni::address base_address)`
-
-Если модуль не найден, возвращается пустой `omni::module`.
-
-## Именование модулей
-
-`matches_name_hash()` и `get_module()` учитывают как полное имя (`kernel32.dll`), так и имя без суффикса `.dll` (`kernel32`), если у модуля действительно DLL suffix.

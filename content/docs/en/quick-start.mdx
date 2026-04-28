@@ -5,7 +5,7 @@ description: Quick start with omni and an overview of the main usage scenarios
 
 ## Integration
 
-`omni` is a header-only library. It is enough to add the project directory in CMake and link the `omni::omni` target.
+`omni` is header-only. Add the project directory in CMake and link the exported target:
 
 ```cmake
 add_subdirectory(path/to/omni)
@@ -41,40 +41,36 @@ int main() {
 
 ## API areas
 
-| Section | Main entities |
+| Area | Main entities |
 | --- | --- |
 | Utilities | `omni::address`, `omni::fnv1a32`, `omni::fnv1a64`, `omni::default_hash`, `omni::error` |
 | Status | `omni::status`, `omni::severity`, `omni::facility`, `omni::ntstatus` |
-| Modules | `omni::module`, `omni::modules`, `omni::get_module` |
-| Exports | `omni::module_export`, `omni::module_exports`, `omni::get_export`, `omni::try_get_export` |
+| Modules | `omni::module`, `omni::modules`, `omni::base_module`, `omni::get_module` |
+| Exports | `omni::module_export`, `omni::module_exports`, `omni::get_export` |
+| API Sets | `omni::api_set`, `omni::api_sets`, `omni::api_set_host`, `omni::get_api_set` |
 | Lazy Import | `omni::lazy_importer`, `omni::lazy_import` |
-| Syscalls | `omni::syscaller`, `omni::syscall` |
+| Syscalls | `omni::syscaller`, `omni::syscall`, `omni::default_syscall_id_parser` |
 | Shared Data | `omni::shared_user_data`, `omni::win::kernel_user_shared_data` |
 | Memory | `omni::nt_allocator`, `omni::rw_allocator`, `omni::rx_allocator`, `omni::rwx_allocator` |
 
-## Configuration
+## Build examples and tests
 
-Compile-time switches are supported:
+```bash
+cmake -S . -B build -DOMNI_BUILD_EXAMPLES=ON -DOMNI_BUILD_TESTS=ON
+cmake --build build --config Release
+ctest --test-dir build --output-on-failure -C Release
+```
+
+## Configuration macros
 
 | Macro | Effect |
 | --- | --- |
-| `OMNI_DISABLE_CACHING` | disables the internal cache for lazy import and syscall IDs |
-| `OMNI_ENABLE_ERROR_STRINGS` | keeps string error descriptions in non-debug builds |
-| `OMNI_DISABLE_ERROR_STRINGS` | removes string error descriptions even in debug builds |
+| `OMNI_DISABLE_CACHING` | disables the internal lazy-import and syscall-ID caches |
+| `OMNI_ENABLE_ERROR_STRINGS` | keeps readable error strings in non-debug builds |
+| `OMNI_DISABLE_ERROR_STRINGS` | strips error strings even in debug builds |
 
-## Extensibility
+## Notes
 
-The public `omni` API is not limited to a single usage style. The main extension points are:
-
-- a custom hash type instead of `omni::default_hash`;
-- typed and compile-time overloads in `lazy_import` and `syscall`;
-- allocator policy customization through `AllocFlags` and `Protect`;
-- compile-time feature toggles via macros.
-
-If you want the full picture, see `Utilities`, where hash policy replacement and related customization points are documented explicitly.
-
-## Limitations
-
-- the library is Windows-oriented;
-- the `syscall` API is intended for x64;
-- string literals in hash-aware overloads can be converted to hash types at compile time.
+- the library is Windows-specific;
+- the syscall API is intended for x64 processes;
+- hash-aware overloads accept strongly typed hash values and string literals that can be converted at compile time.

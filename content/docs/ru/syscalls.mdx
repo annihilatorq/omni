@@ -3,58 +3,58 @@ title: Syscalls
 description: Разрешение syscall ID и вызов системных вызовов через omni
 ---
 
-## Ограничение платформы
+## Platform limitation
 
 `omni::syscaller` и `omni::syscall` доступны только на x64.
 
 ## `omni::syscaller<T>`
 
-Typed wrapper, который:
+Typed wrapper находит export, извлекает syscall ID из stub, подготавливает shellcode bridge и выполняет system call.
 
-1. находит экспорт в loaded modules;
-2. извлекает syscall ID из syscall stub;
-3. подготавливает shellcode-bridge;
-4. выполняет системный вызов.
+### Constructor
 
-### Конструктор
+- `syscaller(export_name_hash, syscall_id_parser parser = default_syscall_id_parser)`
+- `syscaller(default_hash, syscall_id_parser parser = default_syscall_id_parser)`
 
-- `syscaller(export_name_hash)`
+`syscaller<T>::syscall_id_parser` — тип parser. Parser по умолчанию: `omni::default_syscall_id_parser(const omni::module_export&)`.
 
-### Основные методы
+### Methods
 
-| Метод | Возвращает | Назначение |
+| Method | Returns | Purpose |
 | --- | --- | --- |
-| `try_invoke(args...)` | `std::expected<T, std::error_code>` | безопасный вызов с диагностикой |
-| `invoke(args...)` | `T` | вызов без явной обработки ошибки |
-| `operator()(args...)` | `T` | shorthand вызов |
+| `try_invoke(args...)` | `std::expected<T, std::error_code>` | вызов с диагностикой |
+| `invoke(args...)` | `T` | вызов с default value при ошибке |
+| `operator()(args...)` | `T` | shorthand для `invoke` |
+
+Function-pointer specializations выводят arguments и return type из NT function signature.
 
 ## `omni::syscall`
 
-Свободные overloads для краткой записи.
+Free overloads дают короткую запись для one-off calls:
 
-### Overloads
-
-- `omni::syscall<T>(export_name_hash, args...)`
+- `omni::syscall<T = omni::status>(export_name_hash, args...)`
 - `omni::syscall<F>(export_name_hash, args...)`
 - `omni::syscall<Func, Hasher>(args...)`
 - `omni::syscall<Func>(args...)`
 
 ## Примеры
 
-### Generic status
-
 ```cpp
-auto status = omni::syscall("NtYieldExecution");
+auto yield_status = omni::syscall<omni::status>("NtYieldExecution");
 ```
-
-### Typed syscall wrapper
 
 ```cpp
 using nt_query_info_process_fn = omni::status (*)(HANDLE, ULONG, void*, ULONG, ULONG*);
-omni::syscaller<nt_query_info_process_fn> query_process{"NtQueryInformationProcess"};
-```
 
-### Typed free-function overload
+omni::syscaller<nt_query_info_process_fn> query_process{"NtQueryInformationProcess"};
+auto result = query_process.try_invoke(
+  ::GetCurrentProcess(),
+  0U,
+  &process_info,
+  sizeof(process_info),
+  &return_length
+);
+```
 
 ```cpp
 auto status = omni::syscall<nt_query_info_process_fn>(
@@ -67,18 +67,8 @@ auto status = omni::syscall<nt_query_info_process_fn>(
 );
 ```
 
-## Ошибки
+## Errors and notes
 
-В `try_invoke()` возможны:
+`try_invoke()` может вернуть `export_not_found`, `module_not_loaded` или `syscall_id_not_found`. Последняя ошибка означает, что export найден, но не совпал с ожидаемым syscall stub pattern.
 
-- `omni::error::export_not_found`
-- `omni::error::module_not_loaded`
-- `omni::error::syscall_id_not_found`
-
-`syscall_id_not_found` означает, что экспорт найден, но не распознан как подходящий syscall stub.
-
-## Важные замечания
-
-- поиск syscall ID основан на паттерне байтов внутри export stub;
-- код не рассматривает сценарии с hook/EDR, меняющими stub;
-- свободные overloads без `try_*` возвращают default-constructed значение при неудаче.
+Free overloads без `try_*` возвращают default-constructed value при ошибке. Default parser не обрабатывает hooks или EDR-modified stubs.

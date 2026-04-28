@@ -7,7 +7,7 @@ description: NTSTATUS types and helper checks in omni
 
 ### `omni::severity`
 
-Result classification:
+Classifies the high bits of an NTSTATUS value:
 
 - `success`
 - `information`
@@ -16,70 +16,47 @@ Result classification:
 
 ### `omni::facility`
 
-The NT status group/subsystem. The API includes values such as:
-
-- `rpc_runtime`
-- `io_error_code`
-- `ntwin32`
-- `graphics_kernel`
-- `hypervisor`
-- `security_core`
+Represents the NT status facility/subsystem. The enum includes common groups such as `rpc_runtime`, `io_error_code`, `ntwin32`, `graphics_kernel`, `hypervisor`, and `security_core`.
 
 ### `omni::ntstatus`
 
-A set of commonly used NTSTATUS constants, including:
+Contains commonly used NTSTATUS constants, including:
 
-- `success`
-- `pending`
-- `timeout`
-- `buffer_overflow`
-- `invalid_parameter`
-- `access_denied`
-- `access_violation`
-- `no_memory`
-- `object_name_not_found`
-- `procedure_not_found`
-- `dll_not_found`
+- success and informational states: `success`, `pending`, `more_entries`
+- iteration end states: `no_more_entries`, `no_more_files`
+- validation and lookup errors: `invalid_parameter`, `object_name_not_found`, `procedure_not_found`
+- access and memory errors: `access_denied`, `access_violation`, `no_memory`
+- module and feature errors: `dll_not_found`, `not_implemented`, `not_supported`, `unsuccessful`
 
 ## `omni::status`
 
-A wrapper over `NTSTATUS`.
-
-### Field
-
-- `value` — raw `std::int32_t`
-
-### Main operations
+A lightweight wrapper over raw `NTSTATUS`.
 
 | API | Purpose |
 | --- | --- |
+| `value` | raw `std::int32_t` status value |
 | `operator=(std::int32_t)` | assign a raw value |
-| `operator=(omni::ntstatus)` | assign from the enumeration |
-| `is_success()` | `value >= 0` |
-| `is_information()` | check for information severity |
-| `is_warning()` | check for warning severity |
-| `is_error()` | check for error severity |
+| `operator=(omni::ntstatus)` | assign from the enum |
+| `is_success()` | check for a non-negative status |
+| `is_information()` | check information severity |
+| `is_warning()` | check warning severity |
+| `is_error()` | check error severity |
 | `severity()` | return `omni::severity` |
 | `facility()` | return `omni::facility` |
 | `code()` | return the low 16-bit code |
 
-### Conversions and comparisons
+The type supports comparisons with raw integers, `omni::ntstatus`, and other `omni::status` values. It also supports explicit conversion to `bool` and `std::int32_t`, plus `std::formatter` for `omni::status` and `omni::ntstatus`.
 
-- comparison with `std::int32_t`;
-- comparison with `omni::ntstatus`;
-- `operator bool()` — true if the status is successful;
-- `operator std::int32_t()`.
-
-### Example
+## Example
 
 ```cpp
 omni::status result = omni::ntstatus::success;
 
 if (result.is_success()) {
-  // ok
+  std::println("status: 0x{:08X}", static_cast<std::uint32_t>(result.value));
 }
 
 if (result == omni::ntstatus::success) {
-  // exact match
+  std::println("exact success");
 }
 ```

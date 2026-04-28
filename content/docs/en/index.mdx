@@ -5,9 +5,9 @@ description: Public API of a header-only C++23 library for Windows low-level tas
 
 # omni
 
-`omni` is a header-only C++23 library for Windows-oriented low-level development: module and export inspection, lazy import, syscall wrappers, shared user data, and compile-time hashing.
+`omni` is a header-only C++23 library for Windows-focused low-level work: module and export inspection, API-set schema reading, lazy imports, syscalls, shared user data, allocators, and compile-time hashing.
 
-## What is included in the public API
+## Public API
 
 <Cards>
   <Card title="Quick Start" href="quick-start" />
@@ -15,37 +15,43 @@ description: Public API of a header-only C++23 library for Windows low-level tas
   <Card title="Status" href="status" />
   <Card title="Modules" href="modules" />
   <Card title="Exports" href="exports" />
+  <Card title="API Sets" href="api-sets" />
   <Card title="Lazy Import" href="lazy-import" />
   <Card title="Syscalls" href="syscalls" />
   <Card title="Shared User Data" href="shared-user-data" />
   <Card title="Allocator" href="allocator" />
 </Cards>
 
-## Key capabilities
+## Highlights
 
-- access the loader list as a range via `omni::modules`;
-- work with the PE export table via `omni::module_exports` and `omni::module_export`;
-- look up exports by name, hash, and ordinal;
-- call WinAPI via `omni::lazy_import` and `omni::lazy_importer`;
-- call NT syscalls via `omni::syscall` and `omni::syscaller`;
-- read `KUSER_SHARED_DATA` via `omni::shared_user_data()`;
-- use compile-time hash types `omni::fnv1a32`, `omni::fnv1a64`, and `omni::default_hash`.
+- loader-list access through range-friendly `omni::modules`;
+- PE export table parsing through `omni::module_exports` and `omni::module_export`;
+- API-set schema inspection through `omni::api_sets` and `omni::api_set`;
+- WinAPI calls through `omni::lazy_import` and `omni::lazy_importer`;
+- x64 NT syscall calls through `omni::syscall` and `omni::syscaller`;
+- `KUSER_SHARED_DATA` access through `omni::shared_user_data()`;
+- strongly typed compile-time hashes with replaceable hash policies;
+- optional internal caching for lazy imports and syscall IDs.
 
-## Who this documentation is for
+## Scope
 
-This site documents only the public API available to library users. Internal details from `omni/detail/*` are not documented as a supported contract.
+This site documents the public user-facing API. Headers under `omni/detail/*` are implementation details and are not treated as a supported contract.
 
-## Public API headers
+## Public headers
 
+- `omni/omni.hpp`
 - `omni/address.hpp`
-- `omni/hash.hpp`
+- `omni/allocator.hpp`
+- `omni/api_set.hpp`
+- `omni/api_sets.hpp`
+- `omni/concepts.hpp`
 - `omni/error.hpp`
-- `omni/status.hpp`
+- `omni/hash.hpp`
+- `omni/lazy_import.hpp`
 - `omni/module.hpp`
-- `omni/modules.hpp`
 - `omni/module_export.hpp`
 - `omni/module_exports.hpp`
-- `omni/lazy_import.hpp`
-- `omni/syscall.hpp`
+- `omni/modules.hpp`
 - `omni/shared_user_data.hpp`
-- `omni/allocator.hpp`
+- `omni/status.hpp`
+- `omni/syscall.hpp`
