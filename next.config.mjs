@@ -4,7 +4,7 @@ const withMDX = createMDX();
 
 /** @type {import('next').NextConfig} */
 const isGithubPages = process.env.GITHUB_ACTIONS === 'true';
-const githubPagesBasePath = '/omni-docs';
+const githubPagesBasePath = '/omni';
 
 const config = {
   output: 'export',

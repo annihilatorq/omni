@@ -5,6 +5,6 @@ export const docsContentRoute = '/llms.mdx/docs';
 
 export const gitConfig = {
   user: 'Receiver',
-  repo: 'omni-docs',
-  branch: 'main',
+  repo: 'omni',
+  branch: 'docs',
 };
