@@ -8,7 +8,7 @@
 #include <span>
 #include <variant>
 
-#include "omni/concepts.hpp"
+#include "omni/concepts/concepts.hpp"
 
 namespace omni {
 

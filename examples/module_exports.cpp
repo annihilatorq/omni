@@ -1,7 +1,8 @@
-﻿#include <Windows.h>
+#include <Windows.h>
 
 #include "omni/hash.hpp"
-#include "omni/module_exports.hpp"
+#include "omni/module.hpp"
+#include "omni/module_export.hpp"
 #include "omni/modules.hpp"
 
 #include <print>
@@ -50,12 +51,12 @@ namespace {
     return omni::default_hash{omni::hash<omni::default_hash>(value)};
   }
 
-  [[nodiscard]] bool has_sh_prefix(const omni::module_export& export_entry) {
+  [[nodiscard]] bool has_sh_prefix(const omni::named_export& export_entry) {
     return export_entry.name.starts_with("SH");
   }
 
-  [[nodiscard]] bool is_named_forwarded_export(const omni::module_export& export_entry) {
-    return export_entry.is_forwarded && !export_entry.name.empty();
+  [[nodiscard]] bool is_named_forwarded_export(const omni::named_export& export_entry) {
+    return export_entry.is_forwarded() && !export_entry.name.empty();
   }
 
 } // namespace
@@ -64,35 +65,36 @@ int main() {
   loaded_library shlwapi{L"shlwapi.dll"};
   loaded_library shcore{L"shcore.dll"};
   auto shlwapi_module = omni::get_module(L"shlwapi.dll");
-  auto exports = shlwapi_module.exports();
 
   if (!shlwapi || !shlwapi_module.present()) {
     std::println("Failed to load shlwapi.dll.");
     return 1;
   }
 
+  auto named_exports = shlwapi_module.named_exports();
+  auto ordinal_exports = shlwapi_module.ordinal_exports();
+
   std::println("shlwapi.dll export table:");
-  std::println("  total exports        : {}", exports.size());
+  std::println("  named exports        : {}", named_exports.size());
+  std::println("  ordinal exports      : {}", ordinal_exports.size());
   std::println("  first 10 SH* exports :");
 
-  for (const auto& export_entry : exports.named() | std::views::filter(has_sh_prefix) | std::views::take(10)) {
-    std::println("    {:>4} {}", export_entry.ordinal, export_entry.name);
+  for (const auto& export_entry : named_exports | std::views::filter(has_sh_prefix) | std::views::take(10)) {
+    std::println("    {}", export_entry.name);
   }
 
   std::println();
   std::println("Ordinal iteration gives the whole table without doing name lookups:");
-  for (const auto& export_entry : exports.ordinal() | std::views::take(5)) {
+  for (const auto& export_entry : ordinal_exports | std::views::take(5)) {
     std::println("  {:>4} -> {:#x}", export_entry.ordinal, export_entry.address.value());
   }
 
-  auto forwarded_export = omni::module_export{};
-  auto shunicode_to_ansi_cp = exports.find("SHUnicodeToAnsiCP");
-  if (shunicode_to_ansi_cp != exports.end() && shunicode_to_ansi_cp->is_forwarded) {
+  auto forwarded_export = omni::named_export{};
+  auto shunicode_to_ansi_cp = named_exports.find("SHUnicodeToAnsiCP");
+  if (shunicode_to_ansi_cp != named_exports.end() && shunicode_to_ansi_cp->is_forwarded()) {
     forwarded_export = *shunicode_to_ansi_cp;
   } else {
-    auto named_exports = exports.named();
     auto first_named_forwarder = std::ranges::find_if(named_exports, is_named_forwarded_export);
-
     if (first_named_forwarder != named_exports.end()) {
       forwarded_export = *first_named_forwarder;
     }
@@ -105,10 +107,6 @@ int main() {
   }
 
   auto target_module_hash = runtime_hash(forwarded_export.forwarder_string.module);
-  auto resolved_export =
-    forwarded_export.forwarder_string.is_ordinal() ?
-      omni::get_export(forwarded_export.forwarder_string.to_ordinal(), target_module_hash, omni::use_ordinal) :
-      omni::get_export(runtime_hash(forwarded_export.forwarder_string.function), target_module_hash);
 
   std::println();
   std::println("Forwarded exports stay readable as plain data:");
@@ -117,16 +115,27 @@ int main() {
     forwarded_export.forwarder_string.module,
     forwarded_export.forwarder_string.function);
 
+  if (forwarded_export.forwarder_string.is_ordinal()) {
+    auto resolved_export =
+      omni::get_export(forwarded_export.forwarder_string.to_ordinal(), target_module_hash, omni::use_ordinal);
+    if (!resolved_export) {
+      std::println("  resolved target      : target module is not loaded");
+      return 0;
+    }
+
+    std::println("  resolved module      : {}", omni::get_module(resolved_export.module_base).name());
+    std::println("  resolved ordinal     : {}", resolved_export.ordinal);
+    std::println("  resolved address     : {:#x}", resolved_export.address.value());
+    return 0;
+  }
+
+  auto resolved_export = omni::get_export(runtime_hash(forwarded_export.forwarder_string.function), target_module_hash);
   if (!resolved_export) {
     std::println("  resolved target      : target module is not loaded");
     return 0;
   }
 
   std::println("  resolved module      : {}", omni::get_module(resolved_export.module_base).name());
-  if (resolved_export.name.empty()) {
-    std::println("  resolved target      : ordinal {}", resolved_export.ordinal);
-  } else {
-    std::println("  resolved target      : {}", resolved_export.name);
-  }
+  std::println("  resolved target      : {}", resolved_export.name);
   std::println("  resolved address     : {:#x}", resolved_export.address.value());
 }

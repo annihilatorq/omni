@@ -5,7 +5,7 @@
 #include <utility>
 
 #include "omni/address.hpp"
-#include "omni/concepts.hpp"
+#include "omni/concepts/concepts.hpp"
 #include "omni/detail/config.hpp"
 #include "omni/detail/extract_function_name.hpp"
 #include "omni/detail/inplace_function.hpp"
@@ -29,7 +29,7 @@ namespace omni {
   // Syscall ID is at an offset of 4 bytes from the specified address.
   // Not considering the situation when EDR hook is installed
   // Learn more here: https://github.com/annihilatorq/shadow_syscall/issues/1
-  inline std::expected<std::uint32_t, std::error_code> default_syscall_id_parser(const omni::module_export& module_export) {
+  inline std::expected<std::uint32_t, std::error_code> default_syscall_id_parser(const omni::named_export& module_export) {
     auto* address = module_export.address.ptr<std::uint8_t>();
 
     for (std::size_t i{}; i < 24; ++i) {
@@ -46,7 +46,7 @@ namespace omni {
     requires(omni::detail::is_x64)
   class syscaller {
    public:
-    using syscall_id_parser = detail::inplace_function<std::expected<std::uint32_t, std::error_code>(omni::module_export)>;
+    using syscall_id_parser = detail::inplace_function<std::expected<std::uint32_t, std::error_code>(omni::named_export)>;
 
     explicit syscaller(concepts::hash auto export_name, syscall_id_parser parser = default_syscall_id_parser)
       : syscall_id_parser_(std::move(parser)), syscall_id_(resolve_syscall_id(export_name)) {
@@ -102,12 +102,12 @@ namespace omni {
         return cached_syscall_id.value();
       }
 #endif
-      omni::module_export module_export = omni::get_export(export_name);
-      if (!module_export.present()) {
+      omni::named_export named_export = omni::get_export(export_name);
+      if (!named_export.present()) {
         return std::unexpected(omni::error::export_not_found);
       }
 
-      auto parsed_syscall_id = syscall_id_parser_(module_export);
+      auto parsed_syscall_id = syscall_id_parser_(named_export);
       if (!parsed_syscall_id) {
         return std::unexpected(parsed_syscall_id.error());
       }

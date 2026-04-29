@@ -1,13 +1,20 @@
 #pragma once
 
-#include "omni/concepts.hpp"
+#include "omni/concepts/concepts.hpp"
 
 namespace omni::detail {
 
+  template <typename CharT>
+  [[nodiscard]] constexpr static CharT to_lower(CharT c) {
+    return (
+      (c >= static_cast<CharT>('A') && c <= static_cast<CharT>('Z')) ? static_cast<CharT>(c + static_cast<CharT>(32)) : c);
+  }
+
   template <std::unsigned_integral T>
   class fnv1a_hash {
-    constexpr static auto FNV_prime = (sizeof(T) == 4) ? 16777619ULL : 1099511628211ULL;
-    constexpr static auto FNV_offset_basis = (sizeof(T) == 4) ? 2166136261ULL : 14695981039346656037ULL;
+    constexpr static T FNV_prime = (sizeof(T) == 4) ? static_cast<T>(16777619U) : static_cast<T>(1099511628211ULL);
+    constexpr static T FNV_offset_basis =
+      (sizeof(T) == 4) ? static_cast<T>(2166136261U) : static_cast<T>(14695981039346656037ULL);
 
    public:
     constexpr static auto initial_value = FNV_offset_basis;
@@ -75,11 +82,6 @@ namespace omni::detail {
       accumulator ^= static_cast<value_type>(to_lower(byte));
       accumulator *= FNV_prime;
       return accumulator;
-    }
-
-    template <typename CharT>
-    [[nodiscard]] constexpr static CharT to_lower(CharT c) {
-      return ((c >= 'A' && c <= 'Z') ? (c + 32) : c);
     }
 
     value_type value_{FNV_offset_basis};

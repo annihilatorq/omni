@@ -1,5 +1,5 @@
 #include "omni/hash.hpp"
-#include "omni/concepts.hpp"
+#include "omni/concepts/concepts.hpp"
 
 #include <array>
 #include <cstdint>

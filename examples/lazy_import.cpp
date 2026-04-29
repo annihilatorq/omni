@@ -16,7 +16,7 @@ namespace {
 int main() {
   auto get_module_handle = omni::lazy_importer<get_module_handle_w_fn>{"GetModuleHandleW"};
   HMODULE kernel32_handle = get_module_handle(L"kernel32.dll");
-  auto get_module_handle_export = get_module_handle.module_export();
+  auto get_module_handle_export = get_module_handle.named_export();
 
   if (kernel32_handle == nullptr || !get_module_handle_export.present()) {
     std::println("Failed to lazy-import GetModuleHandleW");

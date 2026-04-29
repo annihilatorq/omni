@@ -110,6 +110,10 @@ namespace omni::win {
       return reinterpret_cast<std::uint32_t*>(base_address + rva_functions);
     }
 
+    [[nodiscard]] auto names_table(std::uintptr_t base_address) const {
+      return reinterpret_cast<std::uint32_t*>(base_address + rva_names);
+    }
+
     [[nodiscard]] auto ordinal_table(std::uintptr_t base_address) const {
       return reinterpret_cast<std::uint16_t*>(base_address + rva_name_ordinals);
     }

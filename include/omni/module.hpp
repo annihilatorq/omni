@@ -8,9 +8,10 @@
 #include <string_view>
 
 #include "omni/address.hpp"
-#include "omni/concepts.hpp"
+#include "omni/concepts/concepts.hpp"
 #include "omni/hash.hpp"
-#include "omni/module_exports.hpp"
+#include "omni/named_exports.hpp"
+#include "omni/ordinal_exports.hpp"
 #include "omni/win/peb.hpp"
 #include "omni/win/unicode_string.hpp"
 
@@ -62,8 +63,12 @@ namespace omni {
       return assert_entry()->path.to_path(fmt);
     }
 
-    [[nodiscard]] module_exports exports() const noexcept {
-      return module_exports{assert_entry()->base_address};
+    [[nodiscard]] named_exports named_exports() const noexcept {
+      return omni::named_exports{assert_entry()->base_address};
+    }
+
+    [[nodiscard]] ordinal_exports ordinal_exports() const noexcept {
+      return omni::ordinal_exports{assert_entry()->base_address};
     }
 
     [[nodiscard]] bool present() const noexcept {

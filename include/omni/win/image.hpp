@@ -4,6 +4,7 @@
 #include <limits>
 #include <memory>
 
+#include "omni/address.hpp"
 #include "omni/win/directories.hpp"
 #include "omni/win/dos_header.hpp"
 #include "omni/win/nt_headers.hpp"
@@ -137,5 +138,19 @@ namespace omni::win {
       return ptr_to_raw(rva_to_ptr(rva, length));
     }
   };
+
+  static win::export_directory* get_export_directory(omni::address base_address) {
+    if (!base_address) {
+      return nullptr;
+    }
+
+    const auto* image = base_address.ptr<const win::image>();
+    const auto export_data_dir = image->get_optional_header()->data_directories.export_directory;
+    if (!export_data_dir.present()) {
+      return nullptr;
+    }
+
+    return base_address.ptr<win::export_directory>(export_data_dir.rva);
+  }
 
 } // namespace omni::win

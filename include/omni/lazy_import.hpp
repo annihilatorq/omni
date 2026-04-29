@@ -3,7 +3,7 @@
 #include <expected>
 #include <utility>
 
-#include "omni/concepts.hpp"
+#include "omni/concepts/concepts.hpp"
 #include "omni/detail/config.hpp"
 #include "omni/detail/extract_function_name.hpp"
 #include "omni/detail/fixed_string.hpp"
@@ -41,7 +41,7 @@ namespace omni {
       }
     };
 
-    inline detail::memory_cache<export_cache_key, omni::module_export, export_cache_key_hasher> exports_cache;
+    inline detail::memory_cache<export_cache_key, omni::named_export, export_cache_key_hasher> exports_cache;
   } // namespace detail
 #endif
 
@@ -85,13 +85,13 @@ namespace omni {
       return invoke(std::forward<Args>(args)...);
     }
 
-    [[nodiscard]] omni::module_export module_export() const noexcept {
-      return export_.value_or(omni::module_export{});
+    [[nodiscard]] omni::named_export named_export() const noexcept {
+      return export_.value_or(omni::named_export{});
     }
 
    private:
     template <concepts::hash Hasher>
-    static std::expected<omni::module_export, std::error_code> resolve_module_export(Hasher export_name, Hasher module_name) {
+    static std::expected<omni::named_export, std::error_code> resolve_module_export(Hasher export_name, Hasher module_name) {
 #ifdef OMNI_HAS_CACHING
       detail::export_cache_key export_cache_key{
         .export_name = export_name.value(),
@@ -105,7 +105,7 @@ namespace omni {
           return std::unexpected(omni::error::module_not_loaded);
         }
 
-        omni::module_export fresh_export = omni::get_export(export_name, module);
+        omni::named_export fresh_export = omni::get_export(export_name, module);
         if (!fresh_export.present()) {
           return std::unexpected(omni::error::export_not_found);
         }
@@ -121,7 +121,7 @@ namespace omni {
         return std::unexpected(omni::error::module_not_loaded);
       }
 
-      omni::module_export fresh_export = omni::get_export(export_name, module);
+      omni::named_export fresh_export = omni::get_export(export_name, module);
       if (!fresh_export.present()) {
         return std::unexpected(omni::error::export_not_found);
       }
@@ -130,7 +130,7 @@ namespace omni {
 #endif
     }
 
-    static std::expected<omni::module_export, std::error_code> resolve_module_export(concepts::hash auto export_name) {
+    static std::expected<omni::named_export, std::error_code> resolve_module_export(concepts::hash auto export_name) {
 #ifdef OMNI_HAS_CACHING
       detail::export_cache_key export_cache_key{.export_name = export_name.value()};
       auto module_export = detail::exports_cache.try_get(export_cache_key);
@@ -140,7 +140,7 @@ namespace omni {
       // refresh the cached export, this adds a fast O(n) loaded-module
       // check to each export lookup to detect stale cache entries
       if (!module_export or !module_export->present() or !omni::modules{}.contains(module_export->module_base)) {
-        omni::module_export fresh_export = omni::get_export(export_name);
+        omni::named_export fresh_export = omni::get_export(export_name);
         if (!fresh_export.present()) {
           return std::unexpected(omni::error::export_not_found);
         }
@@ -151,7 +151,7 @@ namespace omni {
 
       return *module_export;
 #else
-      omni::module_export fresh_export = omni::get_export(export_name);
+      omni::named_export fresh_export = omni::get_export(export_name);
       if (!fresh_export.present()) {
         return std::unexpected(omni::error::export_not_found);
       }
@@ -160,14 +160,14 @@ namespace omni {
 #endif
     }
 
-    std::expected<omni::module_export, std::error_code> export_;
+    std::expected<omni::named_export, std::error_code> export_;
   };
 
   template <typename T, typename... Params>
   class lazy_importer<T (*)(Params...)> : private lazy_importer<T> {
    public:
     using lazy_importer<T>::lazy_importer;
-    using lazy_importer<T>::module_export;
+    using lazy_importer<T>::named_export;
 
     std::expected<T, std::error_code> try_invoke(Params... args) {
       return lazy_importer<T>::try_invoke(args...);
@@ -187,7 +187,7 @@ namespace omni {
   class lazy_importer<T(__stdcall*)(Params...)> : private lazy_importer<T> {
    public:
     using lazy_importer<T>::lazy_importer;
-    using lazy_importer<T>::module_export;
+    using lazy_importer<T>::named_export;
 
     std::expected<T, std::error_code> try_invoke(Params... args) {
       return lazy_importer<T>::try_invoke(args...);

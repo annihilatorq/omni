@@ -54,7 +54,7 @@ ut::suite<"omni::syscall"> syscall_suite = [] {
 
     int parser_calls{};
     omni::address parsed_address{};
-    auto parser = [&parser_calls, &parsed_address](const omni::module_export& mod_export) -> syscall_id_parser_result {
+    auto parser = [&parser_calls, &parsed_address](const omni::named_export& mod_export) -> syscall_id_parser_result {
       ++parser_calls;
       parsed_address = mod_export.address;
       return omni::default_syscall_id_parser(mod_export);
@@ -101,7 +101,7 @@ ut::suite<"omni::syscall"> syscall_suite = [] {
 
     int parser_calls{};
     omni::address parsed_address{};
-    auto parser = [&parser_calls, &parsed_address](const omni::module_export& mod_export) -> syscall_id_parser_result {
+    auto parser = [&parser_calls, &parsed_address](const omni::named_export& mod_export) -> syscall_id_parser_result {
       ++parser_calls;
       parsed_address = mod_export.address;
       return std::unexpected(make_error_code(omni::error::syscall_id_not_found));

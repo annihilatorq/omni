@@ -9,7 +9,7 @@
 
 namespace {
 
-  [[nodiscard]] std::string_view name_of_export(const omni::module_export& export_entry) {
+  [[nodiscard]] std::string_view name_of_export(const omni::named_export& export_entry) {
     return export_entry.name;
   }
 
@@ -26,7 +26,8 @@ int main() {
   std::println("  base                 : {:#x}", self.base_address().value());
   std::println("  entry point          : {:#x}", self.entry_point().value());
   std::println("  size of image        : {}", optional_header->size_image);
-  std::println("  export count         : {}", self.exports().size());
+  std::println("  named exports        : {}", self.named_exports().size());
+  std::println("  ordinal exports      : {}", self.ordinal_exports().size());
 
   std::println();
   std::println("Kernel32 convenience helpers:");
@@ -38,8 +39,8 @@ int main() {
   std::println();
   std::println("First five named exports from kernel32:");
 
-  auto kernel32_exports = kernel32.exports();
-  auto first_named_exports = kernel32_exports.named() | std::views::transform(name_of_export) | std::views::take(5);
+  auto kernel32_exports = kernel32.named_exports();
+  auto first_named_exports = kernel32_exports | std::views::transform(name_of_export) | std::views::take(5);
   for (std::string_view export_name : first_named_exports) {
     std::println("  {}", export_name);
   }

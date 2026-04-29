@@ -1,4 +1,4 @@
-﻿#include <Windows.h>
+#include <Windows.h>
 
 #include "omni/modules.hpp"
 
@@ -49,7 +49,7 @@ namespace {
   }
 
   [[nodiscard]] bool has_many_exports(const omni::module& module) {
-    return module.exports().size() > 1500;
+    return module.ordinal_exports().size() > 1500;
   }
 
 } // namespace
@@ -64,7 +64,11 @@ int main() {
   std::println("A loader list becomes a normal C++ range:");
   auto interesting_modules = loaded_modules | std::views::filter(is_interesting_module);
   for (const auto& module : interesting_modules) {
-    std::println("  {:<16} base={:#x} exports={}", module.name(), module.base_address().value(), module.exports().size());
+    std::println("  {:<16} base={:#x} named={} ordinal={}",
+      module.name(),
+      module.base_address().value(),
+      module.named_exports().size(),
+      module.ordinal_exports().size());
   }
 
   omni::modules after_process_image{};

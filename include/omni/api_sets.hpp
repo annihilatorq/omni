@@ -6,7 +6,7 @@
 #include <string_view>
 
 #include "omni/api_set.hpp"
-#include "omni/concepts.hpp"
+#include "omni/concepts/concepts.hpp"
 #include "omni/hash.hpp"
 #include "omni/win/api_set_map.hpp"
 #include "omni/win/peb.hpp"

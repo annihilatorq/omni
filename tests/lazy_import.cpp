@@ -49,7 +49,7 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
 
     expect(fatal(static_cast<bool>(version_dll)));
 
-    expect(not importer.module_export().present());
+    expect(not importer.named_export().present());
     expect(not result.has_value());
     expect(result.error() == make_error_code(omni::error::export_not_found));
     expect(importer.invoke() == 0U);
@@ -59,7 +59,7 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     omni::lazy_importer<DWORD> importer{"GetCurrentProcessId", "omni_missing_module_for_tests.dll"};
     auto result = importer.try_invoke();
 
-    expect(not importer.module_export().present());
+    expect(not importer.named_export().present());
     expect(not result.has_value());
     expect(result.error() == make_error_code(omni::error::module_not_loaded));
     expect(importer.invoke() == 0U);
@@ -71,7 +71,7 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     omni::lazy_importer<HMODULE> importer{export_name, module_name};
     auto result = importer.try_invoke(L"kernel32.dll");
     omni::module kernel32 = omni::get_module(module_name);
-    omni::module_export expected_export = omni::get_export(export_name, kernel32);
+    omni::named_export expected_export = omni::get_export(export_name, kernel32);
     HMODULE direct_result = ::GetModuleHandleW(L"kernel32.dll");
 
     expect(fatal(direct_result != nullptr));
@@ -80,17 +80,17 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
 
     expect(*result == direct_result);
     expect(importer.invoke(L"kernel32.dll") == direct_result);
-    expect(importer.module_export().present());
-    expect(importer.module_export().address == expected_export.address);
-    expect(importer.module_export().module_base == expected_export.module_base);
-    expect(importer.module_export().name == expected_export.name);
+    expect(importer.named_export().present());
+    expect(importer.named_export().address == expected_export.address);
+    expect(importer.named_export().module_base == expected_export.module_base);
+    expect(importer.named_export().name == expected_export.name);
   };
 
   "void importer invokes a real WinAPI function"_test = [] {
     omni::lazy_importer<void> importer{"SetLastError"};
     auto first_result = importer.try_invoke(0x1234U);
 
-    expect(fatal(importer.module_export().present()));
+    expect(fatal(importer.named_export().present()));
     expect(first_result.has_value());
     expect(::GetLastError() == 0x1234U);
 
@@ -106,7 +106,7 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     auto direct_function =
       reinterpret_cast<get_file_version_info_size_w_fn>(::GetProcAddress(version_dll.handle, "GetFileVersionInfoSizeW"));
     omni::lazy_importer<get_file_version_info_size_w_fn> importer{"GetFileVersionInfoSizeW", "version.dll"};
-    omni::module_export expected_export = omni::get_export("GetFileVersionInfoSizeW", version_module);
+    omni::named_export expected_export = omni::get_export("GetFileVersionInfoSizeW", version_module);
 
     DWORD direct_handle{};
     DWORD lazy_handle{};
@@ -126,10 +126,9 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     expect(operator_result == direct_result);
     expect(lazy_handle == direct_handle);
     expect(operator_handle == direct_handle);
-    expect(importer.module_export().address == expected_export.address);
-    expect(importer.module_export().module_base == expected_export.module_base);
-    expect(importer.module_export().name == expected_export.name);
-    expect(importer.module_export().ordinal == expected_export.ordinal);
+    expect(importer.named_export().address == expected_export.address);
+    expect(importer.named_export().module_base == expected_export.module_base);
+    expect(importer.named_export().name == expected_export.name);
   };
 
   "free lazy_import overloads resolve name pair and function template forms"_test = [] {
@@ -166,8 +165,8 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     omni::lazy_importer<DWORD> global_importer{export_name};
     omni::lazy_importer<DWORD> module_importer{export_name, module_name};
 
-    expect(fatal(global_importer.module_export().present()));
-    expect(fatal(module_importer.module_export().present()));
+    expect(fatal(global_importer.named_export().present()));
+    expect(fatal(module_importer.named_export().present()));
 
     expect(omni::detail::exports_cache.contains(global_key));
     expect(omni::detail::exports_cache.contains(module_key));
@@ -200,13 +199,12 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     omni::default_hash module_name{"version.dll"};
 
     auto cache_key = make_export_cache_key(export_name, module_name);
-    omni::module_export expected_export = omni::get_export(export_name, version_module);
+    omni::named_export expected_export = omni::get_export(export_name, version_module);
 
     omni::detail::exports_cache.set(cache_key,
-      omni::module_export{
+      omni::named_export{
         .name = "stale",
         .address = omni::address{1U},
-        .ordinal = 1U,
         .module_base = omni::address{1U},
       });
 
@@ -218,8 +216,8 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     expect(fatal(expected_export.present()));
     expect(fatal(cached_export.has_value()));
 
-    expect(importer.module_export().address == expected_export.address);
-    expect(importer.module_export().module_base == expected_export.module_base);
+    expect(importer.named_export().address == expected_export.address);
+    expect(importer.named_export().module_base == expected_export.module_base);
     expect(cached_export->address == expected_export.address);
     expect(cached_export->module_base == expected_export.module_base);
   };

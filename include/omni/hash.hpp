@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <format>
 
-#include "omni/concepts.hpp"
+#include "omni/concepts/concepts.hpp"
 #include "omni/detail/hash_impl.hpp"
 
 namespace omni {

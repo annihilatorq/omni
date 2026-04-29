@@ -16,26 +16,27 @@ ut::suite<"std::format"> std_format_suite = [] {
     expect(std::format("{}", ntdll) == ntdll.name());
   };
 
-  "formats initialized and uninitialized omni::module_export"_test = [] {
+  "formats initialized and uninitialized named and ordinal exports"_test = [] {
     auto kernel32 = omni::get_module("kernel32.dll");
 
-    omni::module_export empty_export;
-    omni::module_export ordinal_export;
+    omni::named_export empty_named_export;
+    omni::ordinal_export empty_ordinal_export;
     auto nt_alloc = omni::get_export("NtAllocateVirtualMemory", kernel32);
+    omni::ordinal_export first_ordinal_export;
 
     // Find first ordinal-only export across all modules
     for (const auto& module : omni::modules{}) {
-      auto exports = module.exports();
-      auto ordinal_exports = exports.ordinal();
+      auto ordinal_exports = module.ordinal_exports();
       if (auto it = ordinal_exports.begin(); it != ordinal_exports.end()) {
-        ordinal_export = *it;
+        first_ordinal_export = *it;
         break;
       }
     }
 
-    expect(std::format("{}", empty_export).empty());
+    expect(std::format("{}", empty_named_export).empty());
     expect(std::format("{}", nt_alloc) == nt_alloc.name);
-    expect(std::format("{}", ordinal_export) == std::format("#{}", ordinal_export.ordinal));
+    expect(std::format("{}", empty_ordinal_export).empty());
+    expect(std::format("{}", first_ordinal_export) == std::format("#{}", first_ordinal_export.ordinal));
   };
 
   "formats omni::address"_test = [] {

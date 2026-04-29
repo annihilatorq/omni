@@ -96,23 +96,35 @@ ut::suite<"omni::module"> module_suite = [] {
   "exports exposes a real export from version.dll"_test = [] {
     tests::loaded_library version_dll{L"version.dll"};
     omni::module version_module = tests::get_loaded_module(version_dll.handle);
-    omni::module_exports exports = version_module.exports();
+    auto named_exports = version_module.named_exports();
+    auto ordinal_exports = version_module.ordinal_exports();
     omni::default_hash export_name{"GetFileVersionInfoSizeW"};
-    auto export_it = exports.find(export_name);
+    auto export_entries = tests::get_export_table_entries(version_dll.handle);
+    auto* export_entry = find_export_by_name(export_entries, "GetFileVersionInfoSizeW");
+    auto named_export_it = named_exports.find(export_name);
+    auto ordinal_export_it = ordinal_exports.find(export_entry == nullptr ? 0U : export_entry->ordinal);
     FARPROC export_address = ::GetProcAddress(version_dll.handle, "GetFileVersionInfoSizeW");
     auto export_directory_rva = version_module.image()->get_optional_header()->data_directories.export_directory.rva;
     auto* export_directory = version_module.base_address().ptr<omni::win::export_directory>(export_directory_rva);
 
     expect(fatal(static_cast<bool>(version_dll)));
     expect(fatal(version_module.present()));
+    expect(fatal(export_entry != nullptr));
     expect(fatal(export_address != nullptr));
 
-    expect(exports.directory() != nullptr);
-    expect(exports.directory() == export_directory);
-    expect(exports.size() > 0U);
-    expect(export_it != exports.end());
-    expect(not export_it->is_forwarded);
-    expect(export_it->address == export_address);
-    expect(export_it->module_base == version_module.base_address());
+    expect(named_exports.directory() != nullptr);
+    expect(named_exports.directory() == export_directory);
+    expect(ordinal_exports.directory() == export_directory);
+    expect(named_exports.size() > 0U);
+    expect(ordinal_exports.size() >= named_exports.size());
+    expect(named_export_it != named_exports.end());
+    expect(ordinal_export_it != ordinal_exports.end());
+    expect(not named_export_it->is_forwarded());
+    expect(not ordinal_export_it->is_forwarded());
+    expect(named_export_it->address == export_address);
+    expect(ordinal_export_it->address == export_address);
+    expect(named_export_it->module_base == version_module.base_address());
+    expect(ordinal_export_it->module_base == version_module.base_address());
+    expect(ordinal_export_it->ordinal == export_entry->ordinal);
   };
 };

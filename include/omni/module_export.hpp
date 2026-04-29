@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cassert>
+#include <charconv>
 #include <cstdint>
 #include <format>
 #include <limits>
@@ -52,14 +53,16 @@ namespace omni {
     }
   };
 
-  struct module_export {
+  struct named_export {
     std::string_view name;
     omni::address address;
-    std::uint32_t ordinal{};
-    bool is_forwarded{};
     omni::forwarder_string forwarder_string{};
     std::optional<omni::api_set> forwarder_api_set;
     omni::address module_base;
+
+    [[nodiscard]] bool is_forwarded() const noexcept {
+      return forwarder_string.present();
+    }
 
     [[nodiscard]] bool is_ordinal_only() const noexcept {
       return name.empty();
@@ -74,17 +77,40 @@ namespace omni {
     }
   };
 
+  struct ordinal_export {
+    std::uint32_t ordinal{};
+    omni::address address;
+    omni::forwarder_string forwarder_string{};
+    std::optional<omni::api_set> forwarder_api_set;
+    omni::address module_base;
+
+    [[nodiscard]] bool is_forwarded() const noexcept {
+      return forwarder_string.present();
+    }
+
+    [[nodiscard]] bool present() const noexcept {
+      return static_cast<bool>(address);
+    }
+
+    [[nodiscard]] explicit operator bool() const noexcept {
+      return present();
+    }
+  };
+
 } // namespace omni
 
 template <>
-struct std::formatter<omni::module_export> : std::formatter<std::string_view> {
-  auto format(const omni::module_export& module_export, std::format_context& ctx) const {
-    if (!module_export.present()) {
-      return std::formatter<std::string_view, char>::format({}, ctx);
-    }
+struct std::formatter<omni::named_export> : std::formatter<std::string_view> {
+  auto format(const omni::named_export& named_export, std::format_context& ctx) const {
+    return std::formatter<std::string_view, char>::format(named_export.name, ctx);
+  }
+};
 
-    if (!module_export.is_ordinal_only()) {
-      return std::formatter<std::string_view, char>::format(module_export.name, ctx);
+template <>
+struct std::formatter<omni::ordinal_export> : std::formatter<std::string_view> {
+  auto format(const omni::ordinal_export& ordinal_export, std::format_context& ctx) const {
+    if (!ordinal_export.present()) {
+      return ctx.out();
     }
 
     // Zero-allocation path for ordinal exports, since the formatter is
@@ -94,7 +120,7 @@ struct std::formatter<omni::module_export> : std::formatter<std::string_view> {
     ordinal_buf[0] = '#';
 
     auto conversion_result =
-      std::to_chars(ordinal_buf.data() + 1, ordinal_buf.data() + ordinal_buf.size(), module_export.ordinal);
+      std::to_chars(ordinal_buf.data() + 1, ordinal_buf.data() + ordinal_buf.size(), ordinal_export.ordinal);
     std::size_t digits_converted = conversion_result.ptr - ordinal_buf.data();
 
     std::string_view ordinal_view(ordinal_buf.data(), digits_converted);

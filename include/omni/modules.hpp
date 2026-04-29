@@ -4,7 +4,7 @@
 #include <ranges>
 
 #include "omni/address.hpp"
-#include "omni/concepts.hpp"
+#include "omni/concepts/concepts.hpp"
 #include "omni/hash.hpp"
 #include "omni/module.hpp"
 #include "omni/module_export.hpp"
@@ -179,21 +179,21 @@ namespace omni {
 
   // Overloads to find an export in loaded module(s) EAT
 
-  inline module_export get_export(concepts::hash auto export_name, omni::module module);
-  inline module_export get_export(default_hash export_name, omni::module module);
+  inline named_export get_export(concepts::hash auto export_name, omni::module module);
+  inline named_export get_export(default_hash export_name, omni::module module);
 
   template <concepts::hash Hasher>
-  inline module_export get_export(Hasher export_name, Hasher module_name);
-  inline module_export get_export(default_hash export_name, default_hash module_name);
+  inline named_export get_export(Hasher export_name, Hasher module_name);
+  inline named_export get_export(default_hash export_name, default_hash module_name);
 
-  inline module_export get_export(concepts::hash auto export_name);
-  inline module_export get_export(default_hash export_name);
+  inline named_export get_export(concepts::hash auto export_name);
+  inline named_export get_export(default_hash export_name);
 
   template <concepts::hash Hasher>
-  inline module_export get_export(std::uint32_t ordinal, omni::module module, omni::use_ordinal_t);
-  inline module_export get_export(std::uint32_t ordinal, omni::module module, omni::use_ordinal_t);
-  inline module_export get_export(std::uint32_t ordinal, concepts::hash auto module_name, omni::use_ordinal_t);
-  inline module_export get_export(std::uint32_t ordinal, default_hash module_name, omni::use_ordinal_t);
+  inline ordinal_export get_export(std::uint32_t ordinal, omni::module module, omni::use_ordinal_t);
+  inline ordinal_export get_export(std::uint32_t ordinal, omni::module module, omni::use_ordinal_t);
+  inline ordinal_export get_export(std::uint32_t ordinal, concepts::hash auto module_name, omni::use_ordinal_t);
+  inline ordinal_export get_export(std::uint32_t ordinal, default_hash module_name, omni::use_ordinal_t);
 
 } // namespace omni
 
