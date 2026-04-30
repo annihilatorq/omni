@@ -64,7 +64,9 @@ namespace omni::detail {
           return value;
         }
 
-        value = fnv1a_append_bytes<>(value, ch);
+        // Inlining byte appending by hands since it is a critical hotpath
+        value ^= static_cast<value_type>((ch >= static_cast<CharT>('A') && ch <= static_cast<CharT>('Z')) ? (ch + 32) : ch);
+        value *= FNV_prime;
       }
     }
 
