@@ -9,17 +9,17 @@
 #include "omni/concepts/concepts.hpp"
 #include "omni/detail/config.hpp"
 #include "omni/detail/extract_function_name.hpp"
-#include "omni/detail/inplace_function.hpp"
 #include "omni/detail/memory_cache.hpp"
 #include "omni/detail/normalize_pointer_argument.hpp"
 #include "omni/detail/shellcode.hpp"
 #include "omni/error.hpp"
 #include "omni/hash.hpp"
-#if defined(OMNI_COMPILER_CLANG) || defined(OMNI_COMPILER_GCC)
-#  include "omni/impl/syscall.inl"
-#endif
 #include "omni/module_export.hpp"
 #include "omni/status.hpp"
+
+#if defined(OMNI_COMPILER_CLANG) || defined(OMNI_COMPILER_GCC)
+#  include "omni/detail/inline_syscall.hpp"
+#endif
 
 namespace omni {
 

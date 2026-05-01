@@ -13,28 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// Thanks you for this, bro.
-// Original repository: https://github.com/JustasMasiulis/inline_syscall/blob/master/include/inline_syscall.hpp
 
 #pragma once
 
-#include "omni/detail/config.hpp"
 #include <cstdint>
+
+#include "omni/detail/config.hpp"
 
 #if defined(OMNI_COMPILER_CLANG) || defined(OMNI_COMPILER_GCC)
 
 // NOLINTBEGIN(cppcoreguidelines-init-variables)
 
 namespace omni::detail {
-  // disables register keyword deprecation warnings
+
+  // Disables register keyword deprecation warnings
 #  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Wregister"
 
-  /* syscall stubs begin here.
-   *
-   * They all seem more or less the same and that's true, however
-   * we need them like this for best possible code generation.
-   */
+  // Syscall stubs begin here.
+  // They all seem more or less the same and that's true, however
+  // we need them like this for best possible code generation.
 
   OMNI_FORCEINLINE std::int32_t syscall(std::uint32_t id) noexcept {
     register void* a1 asm("r10");
