@@ -18,8 +18,22 @@
 #  define OMNI_ARCH_X86
 #endif
 
-#if !defined(OMNI_DISABLE_EXCEPTIONS) || defined(__cpp_exceptions) || defined(_CPPUNWIND)
-#  define OMNI_HAS_EXCEPTIONS
+#if !defined(OMNI_DISABLE_EXCEPTIONS)
+#  if defined(__clang__)
+#    if __has_feature(cxx_exceptions)
+#      define OMNI_HAS_EXCEPTIONS
+#    endif
+#  elif defined(_MSC_VER)
+#    if defined(_CPPUNWIND)
+#      define OMNI_HAS_EXCEPTIONS
+#    endif
+#  elif defined(__GNUC__)
+#    if defined(__EXCEPTIONS)
+#      define OMNI_HAS_EXCEPTIONS
+#    endif
+#  elif defined(__cpp_exceptions)
+#    define OMNI_HAS_EXCEPTIONS
+#  endif
 #endif
 
 #if !defined(OMNI_HAS_CACHING)
