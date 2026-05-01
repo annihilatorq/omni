@@ -52,6 +52,8 @@
 #  define OMNI_FORCEINLINE __forceinline
 #elif defined(OMNI_COMPILER_CLANG) || defined(OMNI_COMPILER_GCC)
 #  define OMNI_FORCEINLINE inline __attribute__((__always_inline__))
+#else
+#  define OMNI_FORCEINLINE inline
 #endif
 
 namespace omni::detail {
