@@ -61,9 +61,9 @@ namespace omni {
       }
 
       if constexpr (std::is_void_v<T>) {
-        shellcode.execute(detail::normalize_pointer_argument(std::forward<Args>(args))...);
+        shellcode.execute(std::forward<Args>(args)...);
       } else {
-        return shellcode.execute<T>(detail::normalize_pointer_argument(std::forward<Args>(args))...);
+        return shellcode.execute<T>(std::forward<Args>(args)...);
       }
     }
   };
@@ -73,9 +73,9 @@ namespace omni {
     template <typename T, typename... Args>
     T operator()(std::uint32_t syscall_id, Args&&... args) {
       if constexpr (std::is_void_v<T>) {
-        detail::syscall(syscall_id, detail::normalize_pointer_argument(std::forward<Args>(args))...);
+        detail::syscall(syscall_id, std::forward<Args>(args)...);
       } else {
-        return T{detail::syscall(syscall_id, detail::normalize_pointer_argument(std::forward<Args>(args))...)};
+        return T{detail::syscall(syscall_id, std::forward<Args>(args)...)};
       }
     }
   };
@@ -102,10 +102,12 @@ namespace omni {
         return std::unexpected(syscall_id_.error());
       }
       if constexpr (std::is_void_v<T>) {
-        options_.invoker.template operator()<void>(*syscall_id_, std::forward<Args>(args)...);
+        options_.invoker.template operator()<void>(*syscall_id_,
+          detail::normalize_pointer_argument(std::forward<Args>(args))...);
         return {};
       } else {
-        return options_.invoker.template operator()<T>(*syscall_id_, std::forward<Args>(args)...);
+        return options_.invoker.template operator()<T>(*syscall_id_,
+          detail::normalize_pointer_argument(std::forward<Args>(args))...);
       }
     }
 

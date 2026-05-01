@@ -34,6 +34,12 @@
 #  endif
 #endif
 
+#if defined(_MSC_VER)
+#  define OMNI_FORCEINLINE __forceinline
+#else
+#  define OMNI_FORCEINLINE __attribute__((always_inline))
+#endif
+
 namespace omni::detail {
 #ifdef OMNI_ARCH_X64
   [[maybe_unused]] constexpr inline bool is_x64 = true;
