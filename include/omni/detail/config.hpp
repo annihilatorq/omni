@@ -48,12 +48,26 @@
 #  endif
 #endif
 
+#if !defined(OMNI_HAS_INLINE_SYSCALL)
+#  if defined(OMNI_ARCH_X64) && (defined(OMNI_COMPILER_CLANG) || defined(OMNI_COMPILER_GCC))
+#    define OMNI_HAS_INLINE_SYSCALL
+#  endif
+#endif
+
 #if defined(OMNI_COMPILER_MSVC_COMPAT)
 #  define OMNI_FORCEINLINE __forceinline
 #elif defined(OMNI_COMPILER_CLANG) || defined(OMNI_COMPILER_GCC)
 #  define OMNI_FORCEINLINE inline __attribute__((__always_inline__))
 #else
 #  define OMNI_FORCEINLINE inline
+#endif
+
+#if __has_cpp_attribute(msvc::no_unique_address)
+#  define OMNI_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
+#elif __has_cpp_attribute(no_unique_address)
+#  define OMNI_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#else
+#  define OMNI_NO_UNIQUE_ADDRESS
 #endif
 
 namespace omni::detail {

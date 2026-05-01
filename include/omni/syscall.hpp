@@ -17,11 +17,20 @@
 #include "omni/module_export.hpp"
 #include "omni/status.hpp"
 
-#if defined(OMNI_COMPILER_CLANG) || defined(OMNI_COMPILER_GCC)
+#ifdef OMNI_HAS_INLINE_SYSCALL
 #  include "omni/detail/inline_syscall.hpp"
 #endif
 
 namespace omni {
+
+  namespace concepts {
+    template <typename Parser>
+    concept syscall_id_parser =
+      std::invocable<Parser, const omni::named_export&> &&
+      std::same_as<std::invoke_result_t<Parser, const omni::named_export&>, std::expected<std::uint32_t, std::error_code>>;
+
+    template <typename Invoker, typename... Args> concept syscall_invoker = std::invocable<Invoker, std::uint32_t, Args&&...>;
+  } // namespace concepts
 
   namespace detail {
 #ifdef OMNI_HAS_CACHING
@@ -30,10 +39,10 @@ namespace omni {
 #endif
   } // namespace detail
 
-  // Syscall ID is at an offset of 4 bytes from the specified address.
-  // Not considering the situation when EDR hook is installed
-  // Learn more here: https://github.com/annihilatorq/shadow_syscall/issues/1
   struct default_syscall_id_parser {
+    // Syscall ID is at an offset of 4 bytes from the specified address.
+    // Not considering the situation when EDR hook is installed
+    // Learn more here: https://github.com/annihilatorq/shadow_syscall/issues/1
     std::expected<std::uint32_t, std::error_code> operator()(const omni::named_export& module_export) const {
       auto* address = module_export.address.ptr<std::uint8_t>();
 
@@ -48,11 +57,13 @@ namespace omni {
     }
   };
 
-  struct default_syscall_invoker {
+  static_assert(concepts::syscall_id_parser<default_syscall_id_parser>);
+
+  struct shellcode_syscall_invoker {
     bool shellcode_initialized{false};
     detail::shellcode<13> shellcode{{0x49, 0x89, 0xCA, 0x48, 0xC7, 0xC0, 0x3F, 0x10, 0x00, 0x00, 0x0F, 0x05, 0xC3}};
 
-    template <typename T, typename... Args>
+    template <typename T = omni::status, typename... Args>
     T operator()(std::uint32_t syscall_id, Args&&... args) {
       if (!shellcode_initialized) {
         shellcode.write<std::uint32_t>(6, syscall_id);
@@ -68,9 +79,11 @@ namespace omni {
     }
   };
 
-#if defined(OMNI_COMPILER_CLANG) || defined(OMNI_COMPILER_GCC)
+  static_assert(concepts::syscall_invoker<shellcode_syscall_invoker, omni::status>);
+
+#ifdef OMNI_HAS_INLINE_SYSCALL
   struct inline_syscall_invoker {
-    template <typename T, typename... Args>
+    template <typename T = omni::status, typename... Args>
     T operator()(std::uint32_t syscall_id, Args&&... args) {
       if constexpr (std::is_void_v<T>) {
         detail::syscall(syscall_id, std::forward<Args>(args)...);
@@ -79,22 +92,32 @@ namespace omni {
       }
     }
   };
+
+  static_assert(concepts::syscall_invoker<inline_syscall_invoker, omni::status>);
 #endif
 
-  template <typename Parser, typename Invoker>
-  struct options {
-    Parser parser{};
-    Invoker invoker{};
+  template <concepts::syscall_id_parser Parser = default_syscall_id_parser,
+    concepts::syscall_invoker Invoker = shellcode_syscall_invoker>
+  struct syscaller_options {
+    OMNI_NO_UNIQUE_ADDRESS Parser parser;
+    OMNI_NO_UNIQUE_ADDRESS Invoker invoker;
   };
 
-  using default_options = options<default_syscall_id_parser, default_syscall_invoker>;
+  using default_syscaller_options = syscaller_options<default_syscall_id_parser, shellcode_syscall_invoker>;
 
-  template <typename T = omni::status, typename Options = default_options>
+#ifdef OMNI_HAS_INLINE_SYSCALL
+  using inline_syscaller_options = syscaller_options<default_syscall_id_parser, inline_syscall_invoker>;
+#endif
+
+  template <typename T = omni::status, typename Options = default_syscaller_options>
     requires(omni::detail::is_x64)
   class syscaller {
    public:
-    explicit syscaller(concepts::hash auto export_name): options_{}, syscall_id_(resolve_syscall_id(export_name)) {}
-    explicit syscaller(default_hash export_name): options_{}, syscall_id_(resolve_syscall_id(export_name)) {}
+    explicit syscaller(concepts::hash auto export_name, Options options = {})
+      : options_(std::move(options)), syscall_id_(resolve_syscall_id(export_name)) {}
+
+    explicit syscaller(default_hash export_name, Options options = {})
+      : options_(std::move(options)), syscall_id_(resolve_syscall_id(export_name)) {}
 
     template <typename... Args>
     std::expected<T, std::error_code> try_invoke(Args&&... args) {
@@ -150,7 +173,7 @@ namespace omni {
       return *parsed_syscall_id;
     }
 
-    Options options_;
+    OMNI_NO_UNIQUE_ADDRESS Options options_;
     std::expected<std::uint32_t, std::error_code> syscall_id_;
   };
 
@@ -172,6 +195,32 @@ namespace omni {
       return syscaller<T>::invoke(args...);
     }
   };
+
+  template <typename Result, typename Options, typename... Params>
+    requires(omni::detail::is_x64)
+  class syscaller<Result (*)(Params...), Options> : public syscaller<Result, Options> {
+   public:
+    using base_type = syscaller<Result, Options>;
+    using base_type::base_type;
+
+    std::expected<Result, std::error_code> try_invoke(Params... args) {
+      return base_type::try_invoke(std::forward<Params>(args)...);
+    }
+
+    Result invoke(Params... args) {
+      return base_type::invoke(std::forward<Params>(args)...);
+    }
+
+    Result operator()(Params... args) {
+      return base_type::invoke(std::forward<Params>(args)...);
+    }
+  };
+
+#ifdef OMNI_HAS_INLINE_SYSCALL
+  template <typename T = omni::status>
+    requires(omni::detail::is_x64)
+  using inline_syscaller = syscaller<T, inline_syscaller_options>;
+#endif
 
   template <typename T = omni::status, concepts::hash Hasher, typename... Args>
     requires(!concepts::function_pointer<T>)
@@ -205,5 +254,40 @@ namespace omni {
   inline auto syscall(default_hash export_name, Args&&... args) {
     return syscall<F, default_hash>(export_name, std::forward<Args>(args)...);
   }
+
+#ifdef OMNI_HAS_INLINE_SYSCALL
+  template <typename T = omni::status, concepts::hash Hasher, typename... Args>
+    requires(!concepts::function_pointer<T>)
+  inline T inline_syscall(Hasher export_name, Args&&... args) {
+    return inline_syscaller<T>{export_name}.invoke(std::forward<Args>(args)...);
+  }
+
+  template <typename T = omni::status, typename... Args>
+    requires(!concepts::function_pointer<T>)
+  inline T inline_syscall(default_hash export_name, Args&&... args) {
+    return inline_syscall<T, default_hash>(export_name, std::forward<Args>(args)...);
+  }
+
+  template <auto Func, concepts::hash Hasher, class... Args>
+  inline auto inline_syscall(Args&&... args) {
+    constexpr Hasher func_name{detail::extract_function_name<Func>()};
+    return inline_syscaller<decltype(Func)>{func_name}.invoke(std::forward<Args>(args)...);
+  }
+
+  template <auto Func, class... Args>
+  inline auto inline_syscall(Args&&... args) {
+    return inline_syscall<Func, default_hash>(std::forward<Args>(args)...);
+  }
+
+  template <concepts::function_pointer F, concepts::hash Hasher, class... Args>
+  inline auto inline_syscall(Hasher export_name, Args&&... args) {
+    return inline_syscaller<F>{export_name}.invoke(std::forward<Args>(args)...);
+  }
+
+  template <concepts::function_pointer F, class... Args>
+  inline auto inline_syscall(default_hash export_name, Args&&... args) {
+    return inline_syscall<F, default_hash>(export_name, std::forward<Args>(args)...);
+  }
+#endif
 
 } // namespace omni

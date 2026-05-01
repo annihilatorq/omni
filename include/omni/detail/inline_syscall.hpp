@@ -20,7 +20,7 @@
 
 #include "omni/detail/config.hpp"
 
-#if defined(OMNI_COMPILER_CLANG) || defined(OMNI_COMPILER_GCC)
+#ifdef OMNI_HAS_INLINE_SYSCALL
 
 // NOLINTBEGIN(cppcoreguidelines-init-variables)
 
@@ -425,6 +425,6 @@ namespace omni::detail {
 
 } // namespace omni::detail
 
-#endif // defined(OMNI_COMPILER_CLANG) || defined(OMNI_COMPILER_GCC)
+#endif // OMNI_HAS_INLINE_SYSCALL
 
 // NOLINTEND(cppcoreguidelines-init-variables)
