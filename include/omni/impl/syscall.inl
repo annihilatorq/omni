@@ -23,6 +23,8 @@
 
 #if defined(OMNI_COMPILER_CLANG) || defined(OMNI_COMPILER_GCC)
 
+// NOLINTBEGIN(cppcoreguidelines-init-variables)
+
 namespace omni::detail {
   // disables register keyword deprecation warnings
 #  pragma GCC diagnostic push
@@ -426,3 +428,5 @@ namespace omni::detail {
 } // namespace omni::detail
 
 #endif // defined(OMNI_COMPILER_CLANG) || defined(OMNI_COMPILER_GCC)
+
+// NOLINTEND(cppcoreguidelines-init-variables)

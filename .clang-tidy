@@ -40,6 +40,7 @@ Checks: >
     -readability-named-parameter,
     -hicpp-named-parameter,
     -hicpp-avoid-c-arrays,
+    -hicpp-no-assembler,
     -performance-unnecessary-value-param,
     -performance-no-int-to-ptr,
     -performance-enum-size,
