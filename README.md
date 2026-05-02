@@ -69,6 +69,14 @@ If you prefer an amalgamated distribution, the generated single-header build liv
 | Utilities | `omni::address`, `omni::rw_allocator`, `omni::rx_allocator`, `omni::rwx_allocator`, `omni::fnv1a32`, `omni::fnv1a64`, `omni::hash_pair` |
 | Shared data | `omni::shared_user_data` |
 
+On supported x64 Clang/GCC-family toolchains, `omni::inline_syscall` and `omni::inline_syscaller` expose the same syscall surface while issuing the `syscall` instruction directly instead of going through a shellcode stub:
+
+```cpp
+int main() { 
+  return static_cast<int>(omni::inline_syscall<omni::status>("NtYieldExecution"));
+}
+```
+
 ## Export Enumeration Contract
 
 The export API is split intentionally:
