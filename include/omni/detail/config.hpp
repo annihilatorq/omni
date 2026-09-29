@@ -18,6 +18,12 @@
 #  define OMNI_ARCH_X86
 #endif
 
+#if defined(OMNI_ARCH_X86)
+#  define OMNI_NTAPI __stdcall
+#else
+#  define OMNI_NTAPI
+#endif
+
 #if !defined(OMNI_DISABLE_EXCEPTIONS)
 #  if defined(__clang__)
 #    if __has_feature(cxx_exceptions)

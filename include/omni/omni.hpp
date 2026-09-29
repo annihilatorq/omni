@@ -15,6 +15,7 @@
 #include "omni/module_export.hpp"
 #include "omni/modules.hpp"
 #include "omni/named_exports.hpp"
+#include "omni/nt_caller.hpp"
 #include "omni/ordinal_exports.hpp"
 #include "omni/process.hpp"
 #include "omni/shared_user_data.hpp"
