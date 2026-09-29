@@ -170,8 +170,19 @@ namespace omni {
 #endif
     }
 
-    kernel_modules(kernel_modules&&) noexcept = default;
-    kernel_modules& operator=(kernel_modules&&) noexcept = default;
+    kernel_modules(kernel_modules&& other) noexcept
+      : storage_(std::move(other.storage_)), count_(std::exchange(other.count_, 0U)) {}
+
+    kernel_modules& operator=(kernel_modules&& other) noexcept {
+      if (this == &other) {
+        return *this;
+      }
+
+      storage_ = std::move(other.storage_);
+      count_ = std::exchange(other.count_, 0U);
+      return *this;
+    }
+
     kernel_modules(const kernel_modules&) = delete;
     kernel_modules& operator=(const kernel_modules&) = delete;
     ~kernel_modules() = default;
