@@ -20,6 +20,7 @@
 - Lazy imports via `omni::lazy_import` and `omni::lazy_importer`
 - x64 syscall wrappers via `omni::syscall` and `omni::syscaller`, plus `omni::inline_syscall` and `omni::inline_syscaller` on supported toolchains
 - API-set schema access via `omni::api_set`, `omni::api_sets`, and `omni::get_api_set`
+- Process and kernel module snapshots via `omni::processes` and `omni::kernel_modules`
 - Utility types for raw addresses, NT allocation, hashing, NTSTATUS decoding, and shared user data
 - Optional caching for lazy imports and syscall IDs
 
@@ -66,6 +67,8 @@ If you prefer an amalgamated distribution, the generated single-header build liv
 | Lazy imports | `omni::lazy_import`, `omni::lazy_importer` |
 | Syscalls | `omni::syscall`, `omni::syscaller`, `omni::inline_syscall`, `omni::inline_syscaller`, `omni::status`, `omni::ntstatus` |
 | API sets | `omni::api_set`, `omni::api_sets`, `omni::get_api_set` |
+| Processes | `omni::processes`, `omni::process`, `omni::process_access` |
+| Kernel modules | `omni::kernel_modules`, `omni::kernel_module` |
 | Utilities | `omni::address`, `omni::rw_allocator`, `omni::rx_allocator`, `omni::rwx_allocator`, `omni::fnv1a32`, `omni::fnv1a64`, `omni::hash_pair` |
 | Shared data | `omni::shared_user_data` |
 
@@ -76,6 +79,31 @@ int main() {
   return static_cast<int>(omni::inline_syscall<omni::status>("NtYieldExecution"));
 }
 ```
+
+## Process and Kernel Module Snapshots
+
+`omni::processes` and `omni::kernel_modules` wrap `NtQuerySystemInformation` (`SystemProcessInformation` and `SystemModuleInformation`). Each `snapshot()` call returns `std::expected<..., std::error_code>` owning a copy of the data, which is a normal forward range:
+
+```cpp
+auto processes = omni::processes::snapshot();
+if (processes) {
+  for (const omni::process& process : *processes) {
+    std::println("{} {}", process.id(), process.thread_count());
+  }
+}
+
+auto modules = omni::kernel_modules::snapshot();
+if (modules) {
+  for (const omni::kernel_module& module : *modules) {
+    std::println("{} size={:#x}", module.name(), module.size());
+  }
+}
+```
+
+- `omni::process` exposes `id()`, `parent_id()`, `session_id()`, `thread_count()`, `name()`, and `open_handle()`.
+- `omni::kernel_module` exposes `base()`, `size()`, `flags()`, `load_order_index()`, `load_count()`, `path()`, and `name()`.
+- Entries borrow from the snapshot and must not outlive it.
+- On recent Windows builds, non-elevated callers may get a zero `base()` for kernel modules, or `access_denied` from the whole query.
 
 ## Export Enumeration Contract
 
@@ -133,6 +161,8 @@ Every file in [`examples/`](examples) builds as a standalone executable:
 | [`examples/module.cpp`](examples/module.cpp) | Inspecting the current image and basic module helpers |
 | [`examples/module_exports.cpp`](examples/module_exports.cpp) | Raw named/ordinal export views, forwarded exports, and resolving forwarded targets |
 | [`examples/modules.cpp`](examples/modules.cpp) | Walking the loader list as a normal C++ range |
+| [`examples/kernel_modules.cpp`](examples/kernel_modules.cpp) | Snapshotting loaded kernel modules and locating the kernel image |
+| [`examples/process.cpp`](examples/process.cpp) | Snapshotting running processes as a range and opening a process handle |
 | [`examples/shared_user_data.cpp`](examples/shared_user_data.cpp) | Reading `KUSER_SHARED_DATA` through a thin typed wrapper |
 | [`examples/inline_syscall.cpp`](examples/inline_syscall.cpp) | Direct inline syscall wrappers on supported x64 Clang/GCC-style toolchains |
 | [`examples/status.cpp`](examples/status.cpp) | Decoding `NTSTATUS` severity, facility, and code fields |
@@ -180,6 +210,8 @@ Current coverage includes:
 - lazy import success paths, failure paths, typed overloads, and cache behavior
 - syscall resolution, custom parsers, typed/generic wrappers, inline syscall wrappers, and cache behavior
 - API-set contract lookup and host resolution
+- process snapshots via `NtQuerySystemInformation` and opening process handles
+- kernel module snapshots (`SystemModuleInformation`), including an access-denied fallback for non-elevated callers
 
 Run the suite with:
 

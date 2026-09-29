@@ -9,6 +9,7 @@
 #include "omni/error.hpp"
 #include "omni/handle.hpp"
 #include "omni/hash.hpp"
+#include "omni/kernel_modules.hpp"
 #include "omni/lazy_import.hpp"
 #include "omni/module.hpp"
 #include "omni/module_export.hpp"
