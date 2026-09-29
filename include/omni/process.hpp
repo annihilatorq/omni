@@ -16,51 +16,14 @@
 
 #include "omni/allocator.hpp"
 #include "omni/handle.hpp"
-#include "omni/lazy_import.hpp"
-#include "omni/syscall.hpp"
+#include "omni/nt_caller.hpp"
+#include "omni/win/function_signatures.hpp"
+#include "omni/win/object.hpp"
 #include "omni/win/system_process_information.hpp"
 
 namespace omni {
 
   namespace detail {
-
-    struct process_client_id {
-      void* unique_process;
-      void* unique_thread;
-    };
-
-    struct process_object_attributes {
-      std::uint32_t length;
-      void* root_directory;
-      void* object_name;
-      std::uint32_t attributes;
-      void* security_descriptor;
-      void* security_quality_of_service;
-    };
-
-    static_assert(sizeof(process_client_id) == sizeof(void*) * 2);
-    static_assert(sizeof(process_object_attributes) == (sizeof(void*) == 8 ? 0x30 : 0x18));
-
-#ifdef OMNI_ARCH_X86
-    using query_system_information_fn = omni::status(__stdcall*)(std::uint32_t, void*, std::uint32_t, std::uint32_t*);
-    using open_process_fn = omni::status(__stdcall*)(void**, std::uint32_t, process_object_attributes*, process_client_id*);
-#else
-    using query_system_information_fn = omni::status (*)(std::uint32_t, void*, std::uint32_t, std::uint32_t*);
-    using open_process_fn = omni::status (*)(void**, std::uint32_t, process_object_attributes*, process_client_id*);
-#endif
-
-#ifdef OMNI_ARCH_X64
-#  ifdef OMNI_HAS_INLINE_SYSCALL
-    using process_syscaller = omni::inline_syscaller<omni::status>;
-#  else
-    using process_syscaller = omni::syscaller<omni::status>;
-#  endif
-    using process_query_caller = process_syscaller;
-    using process_open_caller = process_syscaller;
-#else
-    using process_query_caller = omni::lazy_importer<query_system_information_fn>;
-    using process_open_caller = omni::lazy_importer<open_process_fn>;
-#endif
 
     [[nodiscard]] inline bool buffer_too_small(omni::status status) noexcept {
       return status == omni::ntstatus::info_length_mismatch || status == omni::ntstatus::buffer_too_small;
@@ -116,12 +79,12 @@ namespace omni {
 #ifdef OMNI_HAS_EXCEPTIONS
       try {
 #endif
-        detail::process_client_id client_id{
+        win::client_id client_id{
           .unique_process = reinterpret_cast<void*>(static_cast<std::uintptr_t>(id())),
           .unique_thread = nullptr,
         };
-        detail::process_object_attributes object_attributes{
-          .length = sizeof(detail::process_object_attributes),
+        win::object_attributes object_attributes{
+          .length = sizeof(win::object_attributes),
           .root_directory = nullptr,
           .object_name = nullptr,
           .attributes = 0,
@@ -130,7 +93,7 @@ namespace omni {
         };
         native_handle handle{};
 
-        detail::process_open_caller open_process{"NtOpenProcess"};
+        omni::default_nt_caller<win::nt_open_process_fn> open_process{"NtOpenProcess"};
         auto result = open_process.try_invoke(&handle, std::to_underlying(access), &object_attributes, &client_id);
         if (!result) {
           return std::unexpected(result.error());
@@ -244,7 +207,7 @@ namespace omni {
       try {
 #endif
         allocator_type allocator;
-        detail::process_query_caller query_system_information{"NtQuerySystemInformation"};
+        omni::default_nt_caller<win::nt_query_system_information_fn> query_system_information{"NtQuerySystemInformation"};
 
         constexpr std::size_t max_attempts = 8;
 
