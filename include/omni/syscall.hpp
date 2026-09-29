@@ -281,6 +281,14 @@ namespace omni {
   template <typename T = omni::status>
     requires(omni::detail::is_x64)
   using inline_syscaller = syscaller<T, inline_syscaller_options>;
+
+  template <typename T = omni::status>
+    requires(omni::detail::is_x64)
+  using default_syscaller = inline_syscaller<T>;
+#else
+  template <typename T = omni::status>
+    requires(omni::detail::is_x64)
+  using default_syscaller = syscaller<T>;
 #endif
 
   template <typename T = omni::status, concepts::hash Hasher, typename... Args>
