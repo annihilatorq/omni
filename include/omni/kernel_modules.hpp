@@ -122,8 +122,7 @@ namespace omni {
         constexpr std::size_t max_attempts = 8;
 
         std::uint32_t required_size{};
-        auto sizing_result =
-          query_system_information.try_invoke(system_module_information_class, nullptr, 0U, &required_size);
+        auto sizing_result = query_system_information.try_invoke(system_module_information_class, nullptr, 0U, &required_size);
         if (!sizing_result) {
           return std::unexpected(sizing_result.error());
         }
@@ -141,8 +140,8 @@ namespace omni {
         for (std::size_t attempt{}; attempt < max_attempts; ++attempt) {
           storage.reset(allocator.allocate(buffer_size));
           required_size = 0U;
-          auto result = query_system_information.try_invoke(
-            system_module_information_class, storage.get(), buffer_size, &required_size);
+          auto result =
+            query_system_information.try_invoke(system_module_information_class, storage.get(), buffer_size, &required_size);
           if (!result) {
             return std::unexpected(result.error());
           }
