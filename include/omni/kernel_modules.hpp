@@ -45,14 +45,14 @@ namespace omni {
 
     // Full path as reported by the kernel, e.g. "\SystemRoot\system32\ntoskrnl.exe".
     [[nodiscard]] std::string_view path() const noexcept {
-      return {info_->full_path_name, bounded_length(0)};
+      return {std::data(info_->full_path_name), bounded_length(0)};
     }
 
     // File name component of the path, e.g. "ntoskrnl.exe".
     [[nodiscard]] std::string_view name() const noexcept {
       const std::size_t offset =
         (std::min)(static_cast<std::size_t>(info_->offset_to_file_name), sizeof(info_->full_path_name));
-      return {info_->full_path_name + offset, bounded_length(offset)};
+      return {std::data(info_->full_path_name) + offset, bounded_length(offset)};
     }
 
     [[nodiscard]] const win::system_module_information& info() const noexcept {
@@ -66,7 +66,7 @@ namespace omni {
     }
 
     [[nodiscard]] std::size_t bounded_length(std::size_t offset) const noexcept {
-      const std::string_view tail{info_->full_path_name + offset, sizeof(info_->full_path_name) - offset};
+      const std::string_view tail{std::data(info_->full_path_name) + offset, sizeof(info_->full_path_name) - offset};
       const auto terminator = tail.find('\0');
       return terminator == std::string_view::npos ? tail.size() : terminator;
     }
@@ -224,7 +224,7 @@ namespace omni {
     }
 
     [[nodiscard]] const win::system_module_information* first_module() const noexcept {
-      return reinterpret_cast<const win::system_modules_information*>(storage_.get())->modules;
+      return std::data(reinterpret_cast<const win::system_modules_information*>(storage_.get())->modules);
     }
 
     buffer_ptr storage_;

@@ -22,7 +22,7 @@ namespace omni::win {
   };
 
   // Layout of the SystemModuleInformation (11) query result.
-  struct system_modules_information {
+  struct system_modules_information { // NOLINT(*-member-init)
     std::uint32_t number_of_modules;
     system_module_information modules[1];
   };
