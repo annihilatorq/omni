@@ -3,40 +3,21 @@
 #include <memory>
 #include <utility>
 
-#include "omni/detail/config.hpp"
-#include "omni/lazy_import.hpp"
+#include "omni/nt_caller.hpp"
 #include "omni/status.hpp"
-#include "omni/syscall.hpp"
+#include "omni/win/function_signatures.hpp"
 
 namespace omni {
 
   using native_handle = void*;
 
   namespace detail {
-    class nt_close_invoker {
-     public:
-      [[nodiscard]] omni::status operator()(native_handle handle) {
-        return invoker_.try_invoke(handle).value_or(ntstatus::procedure_not_found);
-      }
-
-     private:
-#ifdef OMNI_ARCH_X64
-#  ifdef OMNI_HAS_INLINE_SYSCALL
-      omni::inline_syscaller<omni::status> invoker_{"NtClose"};
-#  else
-      omni::syscaller<omni::status> invoker_{"NtClose"};
-#  endif
-#else
-      omni::lazy_importer<omni::status> invoker_{"NtClose", "ntdll.dll"};
-#endif
-    };
-
     inline omni::status nt_close(native_handle handle) noexcept {
 #ifdef OMNI_HAS_EXCEPTIONS
       try {
 #endif
-        static nt_close_invoker nt_close_sc;
-        return nt_close_sc(handle);
+        omni::default_nt_caller<win::nt_close_fn> nt_close{"NtClose"};
+        return nt_close.try_invoke(handle).value_or(ntstatus::procedure_not_found);
 #ifdef OMNI_HAS_EXCEPTIONS
       } catch (const std::bad_alloc&) {
         return omni::ntstatus::no_memory;
