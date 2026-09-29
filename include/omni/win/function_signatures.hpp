@@ -10,5 +10,6 @@ namespace omni::win {
 
   using nt_query_system_information_fn = omni::status(OMNI_NTAPI*)(std::uint32_t, void*, std::uint32_t, std::uint32_t*);
   using nt_open_process_fn = omni::status(OMNI_NTAPI*)(void**, std::uint32_t, object_attributes*, client_id*);
+  using nt_close_fn = omni::status(OMNI_NTAPI*)(void*);
 
 } // namespace omni::win
