@@ -15,7 +15,8 @@
 #include <utility>
 
 #include "omni/allocator.hpp"
-#include "omni/process.hpp"
+#include "omni/nt_caller.hpp"
+#include "omni/win/function_signatures.hpp"
 #include "omni/win/system_module_information.hpp"
 
 namespace omni {
@@ -116,7 +117,7 @@ namespace omni {
       try {
 #endif
         allocator_type allocator;
-        detail::process_query_caller query_system_information{"NtQuerySystemInformation"};
+        omni::default_nt_caller<win::nt_query_system_information_fn> query_system_information{"NtQuerySystemInformation"};
 
         constexpr std::uint32_t system_module_information_class = 11U;
         constexpr std::size_t max_attempts = 8;
@@ -126,7 +127,7 @@ namespace omni {
         if (!sizing_result) {
           return std::unexpected(sizing_result.error());
         }
-        if (!sizing_result->is_success() && !detail::buffer_too_small(*sizing_result)) {
+        if (!sizing_result->is_success() && !buffer_too_small(*sizing_result)) {
           return std::unexpected(make_error_code(*sizing_result));
         }
 
@@ -148,7 +149,7 @@ namespace omni {
           if (result->is_success()) {
             return kernel_modules{std::move(storage), buffer_size};
           }
-          if (!detail::buffer_too_small(*result)) {
+          if (!buffer_too_small(*result)) {
             return std::unexpected(make_error_code(*result));
           }
 
@@ -198,6 +199,10 @@ namespace omni {
     }
 
    private:
+    [[nodiscard]] static bool buffer_too_small(omni::status status) noexcept {
+      return status == omni::ntstatus::info_length_mismatch || status == omni::ntstatus::buffer_too_small;
+    }
+
     struct virtual_free {
       void operator()(std::byte* p) const noexcept {
         if (p == nullptr) {
