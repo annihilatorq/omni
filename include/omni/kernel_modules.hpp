@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "omni/allocator.hpp"
+#include "omni/detail/start_lifetime_as.hpp"
 #include "omni/nt_caller.hpp"
 #include "omni/win/function_signatures.hpp"
 #include "omni/win/system_module_information.hpp"
@@ -91,7 +92,13 @@ namespace omni {
       }
 
       iterator& operator++() noexcept {
-        ++current_;
+        if (--remaining_ == 0) {
+          current_ = nullptr;
+          return *this;
+        }
+
+        const auto* next_location = reinterpret_cast<const std::byte*>(current_) + sizeof(win::system_module_information);
+        current_ = detail::start_lifetime_as<win::system_module_information>(next_location);
         return *this;
       }
 
@@ -105,9 +112,11 @@ namespace omni {
 
      private:
       friend class kernel_modules;
-      explicit iterator(const win::system_module_information* current) noexcept: current_{current} {}
+      explicit iterator(const win::system_module_information* current, std::size_t remaining) noexcept
+        : current_{current}, remaining_{remaining} {}
 
       const win::system_module_information* current_{nullptr};
+      std::size_t remaining_{};
     };
 
     static_assert(std::forward_iterator<kernel_modules::iterator>);
@@ -199,14 +208,12 @@ namespace omni {
       if (!storage_ || count_ == 0) {
         return end();
       }
-      return iterator{first_module()};
+
+      return iterator{detail::start_lifetime_as<win::system_module_information>(first_module()), count_};
     }
 
     [[nodiscard]] iterator end() const noexcept {
-      if (!storage_ || count_ == 0) {
-        return iterator{nullptr};
-      }
-      return iterator{first_module() + count_};
+      return iterator{};
     }
 
    private:
@@ -226,7 +233,7 @@ namespace omni {
     using buffer_ptr = std::unique_ptr<std::byte, virtual_free>;
 
     kernel_modules(buffer_ptr storage, std::uint32_t buffer_size) noexcept: storage_(std::move(storage)) {
-      const auto* header = reinterpret_cast<const win::system_modules_information*>(storage_.get());
+      const auto* header = detail::start_lifetime_as<win::system_modules_information>(storage_.get());
       constexpr std::size_t header_size = offsetof(win::system_modules_information, modules);
       // Never trust the reported count beyond what actually fits in the buffer.
       const std::size_t capacity =
@@ -234,8 +241,8 @@ namespace omni {
       count_ = (std::min)(static_cast<std::size_t>(header->number_of_modules), capacity);
     }
 
-    [[nodiscard]] const win::system_module_information* first_module() const noexcept {
-      return std::data(reinterpret_cast<const win::system_modules_information*>(storage_.get())->modules);
+    [[nodiscard]] const std::byte* first_module() const noexcept {
+      return storage_.get() + offsetof(win::system_modules_information, modules);
     }
 
     buffer_ptr storage_;
