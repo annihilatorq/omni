@@ -23,7 +23,7 @@ namespace omni {
 
   class kernel_module {
    public:
-    [[nodiscard]] void* base() const noexcept {
+    [[nodiscard]] omni::address base_address() const noexcept {
       return info_->image_base;
     }
 

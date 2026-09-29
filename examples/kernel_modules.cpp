@@ -13,7 +13,7 @@ int main() {
 
   std::println("A kernel module snapshot becomes a normal forward range ({} modules):", snapshot->size());
   for (const auto& module : *snapshot | std::views::take(10)) {
-    std::println("  base={:p} size={:#010x} name={}", module.base(), module.size(), module.name());
+    std::println("  base={:p} size={:#010x} name={}", module.base_address().ptr(), module.size(), module.name());
   }
 
   auto kernel =
@@ -27,5 +27,5 @@ int main() {
   std::println("The first module in load order is the kernel image:");
   std::println("  path : {}", (*kernel).path());
   std::println("  name : {}", (*kernel).name());
-  std::println("  base : {:p}", (*kernel).base());
+  std::println("  base : {:p}", (*kernel).base_address().ptr());
 }

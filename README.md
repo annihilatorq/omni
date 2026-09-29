@@ -101,9 +101,9 @@ if (modules) {
 ```
 
 - `omni::process` exposes `id()`, `parent_id()`, `session_id()`, `thread_count()`, `name()`, and `open_handle()`.
-- `omni::kernel_module` exposes `base()`, `size()`, `flags()`, `load_order_index()`, `load_count()`, `path()`, and `name()`.
+- `omni::kernel_module` exposes `base_address()`, `size()`, `flags()`, `load_order_index()`, `load_count()`, `path()`, and `name()`.
 - Entries borrow from the snapshot and must not outlive it.
-- On recent Windows builds, non-elevated callers may get a zero `base()` for kernel modules, or `access_denied` from the whole query.
+- On recent Windows builds, non-elevated callers may get a zero `base_address()` for kernel modules, or `access_denied` from the whole query.
 
 ## Export Enumeration Contract
 

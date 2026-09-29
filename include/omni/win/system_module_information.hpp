@@ -3,13 +3,15 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "omni/address.hpp"
+
 namespace omni::win {
 
   // https://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/rtl/ldrreloc/process_module_information.htm
   struct system_module_information {
-    void* section;
-    void* mapped_base;
-    void* image_base;
+    omni::address section;
+    omni::address mapped_base;
+    omni::address image_base;
     std::uint32_t image_size;
     std::uint32_t flags;
     std::uint16_t load_order_index;
