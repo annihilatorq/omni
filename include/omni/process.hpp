@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "omni/allocator.hpp"
+#include "omni/detail/start_lifetime_as.hpp"
 #include "omni/handle.hpp"
 #include "omni/nt_caller.hpp"
 #include "omni/win/function_signatures.hpp"
@@ -175,12 +176,7 @@ namespace omni {
           current_ = process{};
         } else {
           const auto* next_location = reinterpret_cast<const std::byte*>(current_.info_) + offset;
-#if defined(__cpp_lib_start_lifetime_as)
-          current_.info_ = std::start_lifetime_as<win::system_process_information>(next_location);
-#else
-          // Formally UB, but see comment in processes::begin()
-          current_.info_ = reinterpret_cast<const win::system_process_information*>(next_location);
-#endif
+          current_.info_ = detail::start_lifetime_as<win::system_process_information>(next_location);
         }
         return *this;
       }
@@ -271,18 +267,7 @@ namespace omni {
         return end();
       }
 
-#if defined(__cpp_lib_start_lifetime_as)
-      return iterator{std::start_lifetime_as<win::system_process_information>(storage_.get())};
-#else
-      // Formally, dereferencing this result is UB, due to a violation of the
-      // C++ object model. An object of type win::system_process_information
-      // was never created at the address storage_.get(). However, this is
-      // merely a formality, and in practice, all mainstream compilers
-      // support this behavior because users need, for example, to be able to
-      // read memory buffers owned by the OS, and then reinterpret_cast the
-      // underlying data
-      return iterator{reinterpret_cast<const win::system_process_information*>(storage_.get())};
-#endif
+      return iterator{detail::start_lifetime_as<win::system_process_information>(storage_.get())};
     }
 
     [[nodiscard]] iterator end() const noexcept {
