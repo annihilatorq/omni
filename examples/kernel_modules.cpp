@@ -25,7 +25,7 @@ int main() {
 
   std::println();
   std::println("The first module in load order is the kernel image:");
-  std::println("  path : {}", (*kernel).path());
-  std::println("  name : {}", (*kernel).name());
-  std::println("  base : {:p}", (*kernel).base_address().ptr());
+  std::println("  path : {}", kernel->path());
+  std::println("  name : {}", kernel->name());
+  std::println("  base : {:p}", kernel->base_address().ptr());
 }
