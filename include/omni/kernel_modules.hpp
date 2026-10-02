@@ -62,9 +62,13 @@ namespace omni {
 
    private:
     friend class kernel_modules;
+
+    kernel_module() noexcept = default;
     explicit kernel_module(const win::system_module_information* info) noexcept: info_(info) {
       assert(info_ != nullptr);
     }
+
+    [[nodiscard]] friend bool operator==(const kernel_module&, const kernel_module&) noexcept = default;
 
     [[nodiscard]] std::size_t bounded_length(std::size_t offset) const noexcept {
       const std::string_view tail{std::data(info_->full_path_name) + offset, sizeof(info_->full_path_name) - offset};
@@ -72,7 +76,7 @@ namespace omni {
       return terminator == std::string_view::npos ? tail.size() : terminator;
     }
 
-    const win::system_module_information* info_;
+    const win::system_module_information* info_{nullptr};
   };
 
   class kernel_modules {
@@ -87,18 +91,24 @@ namespace omni {
 
       iterator() noexcept = default;
 
-      [[nodiscard]] kernel_module operator*() const noexcept {
-        return kernel_module{current_};
+      [[nodiscard]] const kernel_module& operator*() const noexcept {
+        assert(current_.info_ != nullptr);
+        return current_;
+      }
+
+      [[nodiscard]] const kernel_module* operator->() const noexcept {
+        assert(current_.info_ != nullptr);
+        return &current_;
       }
 
       iterator& operator++() noexcept {
         if (--remaining_ == 0) {
-          current_ = nullptr;
+          current_ = kernel_module{};
           return *this;
         }
 
-        const auto* next_location = reinterpret_cast<const std::byte*>(current_) + sizeof(win::system_module_information);
-        current_ = detail::start_lifetime_as<win::system_module_information>(next_location);
+        const auto* next_location = reinterpret_cast<const std::byte*>(current_.info_) + sizeof(win::system_module_information);
+        current_.info_ = detail::start_lifetime_as<win::system_module_information>(next_location);
         return *this;
       }
 
@@ -115,7 +125,7 @@ namespace omni {
       explicit iterator(const win::system_module_information* current, std::size_t remaining) noexcept
         : current_{current}, remaining_{remaining} {}
 
-      const win::system_module_information* current_{nullptr};
+      kernel_module current_;
       std::size_t remaining_{};
     };
 

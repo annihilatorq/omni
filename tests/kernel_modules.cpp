@@ -59,7 +59,7 @@ ut::suite<"omni::kernel_modules"> kernel_modules_suite = [] {
 
     const auto kernel = std::ranges::find_if(*snapshot, is_kernel_image);
     expect(fatal(kernel != snapshot->end()));
-    expect((*kernel).size() != 0U);
+    expect(kernel->size() != 0U);
   };
 
   "module accessors match native information"_test = [] {
@@ -153,6 +153,19 @@ ut::suite<"omni::kernel_modules"> kernel_modules_suite = [] {
     expect(std::ranges::find_if(*target, is_kernel_image) != target->end());
   };
 
+  "operator-> and operator* refer to the same module"_test = [] {
+    auto snapshot = take_snapshot();
+    if (!snapshot) {
+      return;
+    }
+
+    const auto it = snapshot->begin();
+    expect(it->path() == (*it).path());
+    expect(it->name() == (*it).name());
+    expect(it->size() == (*it).size());
+    expect(&it->info() == &(*it).info());
+  };
+
   "post-increment returns the previous position"_test = [] {
     auto snapshot = take_snapshot();
     if (!snapshot) {
@@ -164,7 +177,7 @@ ut::suite<"omni::kernel_modules"> kernel_modules_suite = [] {
     const auto previous = it++;
     expect(previous == snapshot->begin());
     expect(it != snapshot->begin());
-    expect((*previous).path() == (*snapshot->begin()).path());
+    expect(previous->path() == snapshot->begin()->path());
   };
 
   "repeated snapshots do not leak memory"_test = [] {

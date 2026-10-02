@@ -1,13 +1,9 @@
 #pragma once
 
 #include "omni/detail/config.hpp"
+#include "omni/lazy_import.hpp"
 #include "omni/status.hpp"
-
-#ifdef OMNI_ARCH_X64
-#  include "omni/syscall.hpp"
-#else
-#  include "omni/lazy_import.hpp"
-#endif
+#include "omni/syscall.hpp"
 
 namespace omni {
 
