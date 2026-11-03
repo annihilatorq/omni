@@ -149,9 +149,6 @@ namespace omni {
       if constexpr (std::is_void_v<T>) {
         detail::syscall(syscall_id, std::forward<Args>(args)...);
       } else {
-        // NTSTATUS results ride the low 32 bits of rax, but pointer and
-        // 64-bit results (PsGetProcessPeb and friends) use the full rax:
-        // capture all 64 bits, then narrow per T.
         const auto raw = detail::syscall(syscall_id, std::forward<Args>(args)...);
         if constexpr (std::is_pointer_v<T>) {
           return reinterpret_cast<T>(raw);
