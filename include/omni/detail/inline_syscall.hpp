@@ -115,7 +115,7 @@ namespace omni::detail {
                  "add $48, %%rsp"
       : "=a"(status)
       : "a"(id), "r"(a1), "d"(_2), "r"(a3), "r"(a4), [a5] "re"(normalize_pointer_argument(_5))
-      : "cc", "rcx", "r11");
+      : "memory", "cc", "rcx", "r11");
     return status;
   }
 
