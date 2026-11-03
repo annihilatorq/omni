@@ -149,9 +149,6 @@ namespace omni {
       if constexpr (std::is_void_v<T>) {
         detail::syscall(syscall_id, std::forward<Args>(args)...);
       } else {
-        // list-initialization would be ill-formed narrowing for integral T
-        // (detail::syscall yields NTSTATUS as std::int32_t), static_cast keeps
-        // the same value semantics without the narrowing check
         return static_cast<T>(detail::syscall(syscall_id, std::forward<Args>(args)...));
       }
     }
