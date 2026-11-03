@@ -38,7 +38,7 @@ namespace omni::detail {
   OMNI_FORCEINLINE std::int64_t syscall(std::uint32_t id) noexcept {
 
     std::int64_t status;
-    asm volatile("syscall\n" : "=a"(status) : "a"(id) : "memory", "cc", "rcx", "r11");
+    asm volatile("syscall\n" : "=a"(status) : "a"(id) : "memory", "cc", "rcx", "r11", "rdx", "r8", "r9", "r10");
     return status;
   }
 
@@ -47,7 +47,7 @@ namespace omni::detail {
     register auto a1 asm("r10") = _1;
 
     std::int64_t status;
-    asm volatile("syscall\n" : "=a"(status) : "a"(id), "r"(a1) : "memory", "cc", "rcx", "r11");
+    asm volatile("syscall\n" : "=a"(status) : "a"(id), "r"(a1) : "memory", "cc", "rcx", "r11", "rdx", "r8", "r9");
     return status;
   }
 
@@ -56,7 +56,7 @@ namespace omni::detail {
     register auto a1 asm("r10") = _1;
 
     std::int64_t status;
-    asm volatile("syscall\n" : "=a"(status) : "a"(id), "r"(a1), "d"(_2) : "memory", "cc", "rcx", "r11");
+    asm volatile("syscall\n" : "=a"(status) : "a"(id), "r"(a1), "d"(_2) : "memory", "cc", "rcx", "r11", "r8", "r9");
     return status;
   }
 
@@ -66,7 +66,7 @@ namespace omni::detail {
     register auto a3 asm("r8") = _3;
 
     std::int64_t status;
-    asm volatile("syscall\n" : "=a"(status) : "a"(id), "r"(a1), "d"(_2), "r"(a3) : "memory", "cc", "rcx", "r11");
+    asm volatile("syscall\n" : "=a"(status) : "a"(id), "r"(a1), "d"(_2), "r"(a3) : "memory", "cc", "rcx", "r11", "r9");
     return status;
   }
 
