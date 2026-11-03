@@ -36,54 +36,39 @@ namespace omni::detail {
   // we need them like this for best possible code generation.
 
   OMNI_FORCEINLINE std::int32_t syscall(std::uint32_t id) noexcept {
-    register void* a1 asm("r10");
-    void* a2;
-    register void* a3 asm("r8");
-    register void* a4 asm("r9");
 
-    void* unused_output;
-    register void* unused_output2 asm("r11");
 
     std::int32_t status;
     asm volatile("syscall\n"
-      : "=a"(status), "=r"(a1), "=d"(a2), "=r"(a3), "=r"(a4), "=c"(unused_output), "=r"(unused_output2)
+      : "=a"(status)
       : "a"(id)
-      : "memory", "cc");
+      : "memory", "cc", "rcx", "r11");
     return status;
   }
 
   template <class T1>
   OMNI_FORCEINLINE std::int32_t syscall(std::uint32_t id, T1 _1) noexcept {
     register auto a1 asm("r10") = _1;
-    void* a2;
-    register void* a3 asm("r8");
-    register void* a4 asm("r9");
 
-    void* unused_output;
-    register void* unused_output2 asm("r11");
 
     std::int32_t status;
     asm volatile("syscall\n"
-      : "=a"(status), "=r"(a1), "=d"(a2), "=r"(a3), "=r"(a4), "=c"(unused_output), "=r"(unused_output2)
+      : "=a"(status)
       : "a"(id), "r"(a1)
-      : "memory", "cc");
+      : "memory", "cc", "rcx", "r11");
     return status;
   }
 
   template <class T1, class T2>
   OMNI_FORCEINLINE std::int32_t syscall(std::uint32_t id, T1 _1, T2 _2) noexcept {
     register auto a1 asm("r10") = _1;
-    register void* a3 asm("r8");
-    register void* a4 asm("r9");
 
-    void* unused_output;
-    register void* unused_output2 asm("r11");
 
     std::int32_t status;
     asm volatile("syscall\n"
-      : "=a"(status), "=r"(a1), "=d"(_2), "=r"(a3), "=r"(a4), "=c"(unused_output), "=r"(unused_output2)
+      : "=a"(status)
       : "a"(id), "r"(a1), "d"(_2)
-      : "memory", "cc");
+      : "memory", "cc", "rcx", "r11");
     return status;
   }
 
@@ -91,16 +76,13 @@ namespace omni::detail {
   OMNI_FORCEINLINE std::int32_t syscall(std::uint32_t id, T1 _1, T2 _2, T3 _3) noexcept {
     register auto a1 asm("r10") = _1;
     register auto a3 asm("r8") = _3;
-    register void* a4 asm("r9");
 
-    void* unused_output;
-    register void* unused_output2 asm("r11");
 
     std::int32_t status;
     asm volatile("syscall\n"
-      : "=a"(status), "=r"(a1), "=d"(_2), "=r"(a3), "=r"(a4), "=c"(unused_output), "=r"(unused_output2)
+      : "=a"(status)
       : "a"(id), "r"(a1), "d"(_2), "r"(a3)
-      : "memory", "cc");
+      : "memory", "cc", "rcx", "r11");
     return status;
   }
 
@@ -110,14 +92,12 @@ namespace omni::detail {
     register auto a3 asm("r8") = _3;
     register auto a4 asm("r9") = _4;
 
-    void* unused_output;
-    register void* unused_output2 asm("r11");
 
     std::int32_t status;
     asm volatile("syscall\n"
-      : "=a"(status), "=r"(a1), "=d"(_2), "=r"(a3), "=r"(a4), "=c"(unused_output), "=r"(unused_output2)
+      : "=a"(status)
       : "a"(id), "r"(a1), "d"(_2), "r"(a3), "r"(a4)
-      : "memory", "cc");
+      : "memory", "cc", "rcx", "r11");
     return status;
   }
 
@@ -127,17 +107,15 @@ namespace omni::detail {
     register auto a3 asm("r8") = _3;
     register auto a4 asm("r9") = _4;
 
-    void* unused_output;
-    register void* unused_output2 asm("r11");
 
     std::int32_t status;
     asm volatile("sub $48, %%rsp\n"
                  "movq %[a5], 40(%%rsp)\n"
                  "syscall\n"
                  "add $48, %%rsp"
-      : "=a"(status), "=r"(a1), "=d"(_2), "=r"(a3), "=r"(a4), "=c"(unused_output), "=r"(unused_output2)
+      : "=a"(status)
       : "a"(id), "r"(a1), "d"(_2), "r"(a3), "r"(a4), [a5] "re"(normalize_pointer_argument(_5))
-      : "cc");
+      : "cc", "rcx", "r11");
     return status;
   }
 
@@ -147,8 +125,6 @@ namespace omni::detail {
     register auto a3 asm("r8") = _3;
     register auto a4 asm("r9") = _4;
 
-    void* unused_output;
-    register void* unused_output2 asm("r11");
 
     std::int32_t status;
     asm volatile("sub $64, %%rsp\n"
@@ -156,7 +132,7 @@ namespace omni::detail {
                  "movq %[a6], 48(%%rsp)\n"
                  "syscall\n"
                  "add $64, %%rsp"
-      : "=a"(status), "=r"(a1), "=d"(_2), "=r"(a3), "=r"(a4), "=c"(unused_output), "=r"(unused_output2)
+      : "=a"(status)
       : "a"(id),
       "r"(a1),
       "d"(_2),
@@ -164,7 +140,7 @@ namespace omni::detail {
       "r"(a4),
       [a5] "re"(normalize_pointer_argument(_5)),
       [a6] "re"(normalize_pointer_argument(_6))
-      : "memory", "cc");
+      : "memory", "cc", "rcx", "r11");
     return status;
   }
 
@@ -174,8 +150,6 @@ namespace omni::detail {
     register auto a3 asm("r8") = _3;
     register auto a4 asm("r9") = _4;
 
-    void* unused_output;
-    register void* unused_output2 asm("r11");
 
     std::int32_t status;
     asm volatile("sub $64, %%rsp\n"
@@ -184,7 +158,7 @@ namespace omni::detail {
                  "movq %[a7], 56(%%rsp)\n"
                  "syscall\n"
                  "add $64, %%rsp"
-      : "=a"(status), "=r"(a1), "=d"(_2), "=r"(a3), "=r"(a4), "=c"(unused_output), "=r"(unused_output2)
+      : "=a"(status)
       : "a"(id),
       "r"(a1),
       "d"(_2),
@@ -193,7 +167,7 @@ namespace omni::detail {
       [a5] "re"(normalize_pointer_argument(_5)),
       [a6] "re"(normalize_pointer_argument(_6)),
       [a7] "re"(normalize_pointer_argument(_7))
-      : "memory", "cc");
+      : "memory", "cc", "rcx", "r11");
     return status;
   }
 
@@ -203,8 +177,6 @@ namespace omni::detail {
     register auto a3 asm("r8") = _3;
     register auto a4 asm("r9") = _4;
 
-    void* unused_output;
-    register void* unused_output2 asm("r11");
 
     std::int32_t status;
     asm volatile("sub $80, %%rsp\n"
@@ -214,7 +186,7 @@ namespace omni::detail {
                  "movq %[a8], 64(%%rsp)\n"
                  "syscall\n"
                  "add $80, %%rsp"
-      : "=a"(status), "=r"(a1), "=d"(_2), "=r"(a3), "=r"(a4), "=c"(unused_output), "=r"(unused_output2)
+      : "=a"(status)
       : "a"(id),
       "r"(a1),
       "d"(_2),
@@ -224,7 +196,7 @@ namespace omni::detail {
       [a6] "re"(normalize_pointer_argument(_6)),
       [a7] "re"(normalize_pointer_argument(_7)),
       [a8] "re"(normalize_pointer_argument(_8))
-      : "memory", "cc");
+      : "memory", "cc", "rcx", "r11");
     return status;
   }
 
@@ -235,8 +207,6 @@ namespace omni::detail {
     register auto a3 asm("r8") = _3;
     register auto a4 asm("r9") = _4;
 
-    void* unused_output;
-    register void* unused_output2 asm("r11");
 
     std::int32_t status;
     asm volatile("sub $80, %%rsp\n"
@@ -247,7 +217,7 @@ namespace omni::detail {
                  "movq %[a9], 72(%%rsp)\n"
                  "syscall\n"
                  "add $80, %%rsp"
-      : "=a"(status), "=r"(a1), "=d"(_2), "=r"(a3), "=r"(a4), "=c"(unused_output), "=r"(unused_output2)
+      : "=a"(status)
       : "a"(id),
       "r"(a1),
       "d"(_2),
@@ -258,7 +228,7 @@ namespace omni::detail {
       [a7] "re"(normalize_pointer_argument(_7)),
       [a8] "re"(normalize_pointer_argument(_8)),
       [a9] "re"(normalize_pointer_argument(_9))
-      : "memory", "cc");
+      : "memory", "cc", "rcx", "r11");
     return status;
   }
 
@@ -269,8 +239,6 @@ namespace omni::detail {
     register auto a3 asm("r8") = _3;
     register auto a4 asm("r9") = _4;
 
-    void* unused_output;
-    register void* unused_output2 asm("r11");
 
     std::int32_t status;
     asm volatile("sub $96, %%rsp\n"
@@ -282,7 +250,7 @@ namespace omni::detail {
                  "movq %[a10], 80(%%rsp)\n"
                  "syscall\n"
                  "add $96, %%rsp"
-      : "=a"(status), "=r"(a1), "=d"(_2), "=r"(a3), "=r"(a4), "=c"(unused_output), "=r"(unused_output2)
+      : "=a"(status)
       : "a"(id),
       "r"(a1),
       "d"(_2),
@@ -294,7 +262,7 @@ namespace omni::detail {
       [a8] "re"(normalize_pointer_argument(_8)),
       [a9] "re"(normalize_pointer_argument(_9)),
       [a10] "re"(normalize_pointer_argument(_10))
-      : "memory", "cc");
+      : "memory", "cc", "rcx", "r11");
     return status;
   }
 
@@ -305,8 +273,6 @@ namespace omni::detail {
     register auto a3 asm("r8") = _3;
     register auto a4 asm("r9") = _4;
 
-    void* unused_output;
-    register void* unused_output2 asm("r11");
 
     std::int32_t status;
     asm volatile("sub $96, %%rsp\n"
@@ -319,7 +285,7 @@ namespace omni::detail {
                  "movq %[a11], 88(%%rsp)\n"
                  "syscall\n"
                  "add $96, %%rsp"
-      : "=a"(status), "=r"(a1), "=d"(_2), "=r"(a3), "=r"(a4), "=c"(unused_output), "=r"(unused_output2)
+      : "=a"(status)
       : "a"(id),
       "r"(a1),
       "d"(_2),
@@ -332,7 +298,7 @@ namespace omni::detail {
       [a9] "re"(normalize_pointer_argument(_9)),
       [a10] "re"(normalize_pointer_argument(_10)),
       [a11] "re"(normalize_pointer_argument(_11))
-      : "memory", "cc");
+      : "memory", "cc", "rcx", "r11");
     return status;
   }
 
@@ -344,8 +310,6 @@ namespace omni::detail {
     register auto a3 asm("r8") = _3;
     register auto a4 asm("r9") = _4;
 
-    void* unused_output;
-    register void* unused_output2 asm("r11");
 
     std::int32_t status;
     asm volatile("sub $112, %%rsp\n"
@@ -359,7 +323,7 @@ namespace omni::detail {
                  "movq %[a12], 96(%%rsp)\n"
                  "syscall\n"
                  "add $112, %%rsp"
-      : "=a"(status), "=r"(a1), "=d"(_2), "=r"(a3), "=r"(a4), "=c"(unused_output), "=r"(unused_output2)
+      : "=a"(status)
       : "a"(id),
       "r"(a1),
       "d"(_2),
@@ -373,7 +337,7 @@ namespace omni::detail {
       [a10] "re"(normalize_pointer_argument(_10)),
       [a11] "re"(normalize_pointer_argument(_11)),
       [a12] "re"(normalize_pointer_argument(_12))
-      : "memory", "cc");
+      : "memory", "cc", "rcx", "r11");
     return status;
   }
 
@@ -385,8 +349,6 @@ namespace omni::detail {
     register auto a3 asm("r8") = _3;
     register auto a4 asm("r9") = _4;
 
-    void* unused_output;
-    register void* unused_output2 asm("r11");
 
     std::int32_t status;
     asm volatile("sub $112, %%rsp\n"
@@ -401,7 +363,7 @@ namespace omni::detail {
                  "movq %[a13], 104(%%rsp)\n"
                  "syscall\n"
                  "add $112, %%rsp"
-      : "=a"(status), "=r"(a1), "=d"(_2), "=r"(a3), "=r"(a4), "=c"(unused_output), "=r"(unused_output2)
+      : "=a"(status)
       : "a"(id),
       "r"(a1),
       "d"(_2),
@@ -416,7 +378,7 @@ namespace omni::detail {
       [a11] "re"(normalize_pointer_argument(_11)),
       [a12] "re"(normalize_pointer_argument(_12)),
       [a13] "re"(normalize_pointer_argument(_13))
-      : "memory", "cc");
+      : "memory", "cc", "rcx", "r11");
     return status;
   }
 
