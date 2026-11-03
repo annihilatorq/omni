@@ -149,7 +149,12 @@ namespace omni {
       if constexpr (std::is_void_v<T>) {
         detail::syscall(syscall_id, std::forward<Args>(args)...);
       } else {
-        return static_cast<T>(detail::syscall(syscall_id, std::forward<Args>(args)...));
+        const auto raw = detail::syscall(syscall_id, std::forward<Args>(args)...);
+        if constexpr (std::is_pointer_v<T>) {
+          return reinterpret_cast<T>(raw);
+        } else {
+          return static_cast<T>(raw);
+        }
       }
     }
   };
