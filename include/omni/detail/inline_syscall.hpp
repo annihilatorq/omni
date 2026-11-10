@@ -47,7 +47,7 @@ namespace omni::detail {
     register auto a1 asm("r10") = _1;
 
     std::int64_t status;
-    asm volatile("syscall\n" : "=a"(status) : "a"(id), "r"(a1) : "memory", "cc", "rcx", "r11", "rdx", "r8", "r9");
+    asm volatile("syscall\n" : "=a"(status), "+r"(a1) : "a"(id) : "memory", "cc", "rcx", "r11", "rdx", "r8", "r9");
     return status;
   }
 
@@ -56,7 +56,7 @@ namespace omni::detail {
     register auto a1 asm("r10") = _1;
 
     std::int64_t status;
-    asm volatile("syscall\n" : "=a"(status), "+d"(_2) : "a"(id), "r"(a1) : "memory", "cc", "rcx", "r11", "r8", "r9");
+    asm volatile("syscall\n" : "=a"(status), "+r"(a1), "+d"(_2) : "a"(id) : "memory", "cc", "rcx", "r11", "r8", "r9");
     return status;
   }
 
@@ -66,7 +66,7 @@ namespace omni::detail {
     register auto a3 asm("r8") = _3;
 
     std::int64_t status;
-    asm volatile("syscall\n" : "=a"(status), "+d"(_2) : "a"(id), "r"(a1), "r"(a3) : "memory", "cc", "rcx", "r11", "r9");
+    asm volatile("syscall\n" : "=a"(status), "+r"(a1), "+r"(a3), "+d"(_2) : "a"(id) : "memory", "cc", "rcx", "r11", "r9");
     return status;
   }
 
@@ -77,7 +77,7 @@ namespace omni::detail {
     register auto a4 asm("r9") = _4;
 
     std::int64_t status;
-    asm volatile("syscall\n" : "=a"(status), "+d"(_2) : "a"(id), "r"(a1), "r"(a3), "r"(a4) : "memory", "cc", "rcx", "r11");
+    asm volatile("syscall\n" : "=a"(status), "+r"(a1), "+r"(a3), "+r"(a4), "+d"(_2) : "a"(id) : "memory", "cc", "rcx", "r11");
     return status;
   }
 
@@ -92,8 +92,8 @@ namespace omni::detail {
                  "movq %[a5], 40(%%rsp)\n"
                  "syscall\n"
                  "add $48, %%rsp"
-      : "=a"(status), "+d"(_2)
-      : "a"(id), "r"(a1), "r"(a3), "r"(a4), [a5] "re"(normalize_pointer_argument(_5))
+      : "=a"(status), "+r"(a1), "+r"(a3), "+r"(a4), "+d"(_2)
+      : "a"(id), [a5] "re"(normalize_pointer_argument(_5))
       : "memory", "cc", "rcx", "r11");
     return status;
   }
@@ -110,8 +110,8 @@ namespace omni::detail {
                  "movq %[a6], 48(%%rsp)\n"
                  "syscall\n"
                  "add $64, %%rsp"
-      : "=a"(status), "+d"(_2)
-      : "a"(id), "r"(a1), "r"(a3), "r"(a4), [a5] "re"(normalize_pointer_argument(_5)), [a6] "re"(normalize_pointer_argument(_6))
+      : "=a"(status), "+r"(a1), "+r"(a3), "+r"(a4), "+d"(_2)
+      : "a"(id), [a5] "re"(normalize_pointer_argument(_5)), [a6] "re"(normalize_pointer_argument(_6))
       : "memory", "cc", "rcx", "r11");
     return status;
   }
@@ -129,11 +129,8 @@ namespace omni::detail {
                  "movq %[a7], 56(%%rsp)\n"
                  "syscall\n"
                  "add $64, %%rsp"
-      : "=a"(status), "+d"(_2)
+      : "=a"(status), "+r"(a1), "+r"(a3), "+r"(a4), "+d"(_2)
       : "a"(id),
-      "r"(a1),
-      "r"(a3),
-      "r"(a4),
       [a5] "re"(normalize_pointer_argument(_5)),
       [a6] "re"(normalize_pointer_argument(_6)),
       [a7] "re"(normalize_pointer_argument(_7))
@@ -155,11 +152,8 @@ namespace omni::detail {
                  "movq %[a8], 64(%%rsp)\n"
                  "syscall\n"
                  "add $80, %%rsp"
-      : "=a"(status), "+d"(_2)
+      : "=a"(status), "+r"(a1), "+r"(a3), "+r"(a4), "+d"(_2)
       : "a"(id),
-      "r"(a1),
-      "r"(a3),
-      "r"(a4),
       [a5] "re"(normalize_pointer_argument(_5)),
       [a6] "re"(normalize_pointer_argument(_6)),
       [a7] "re"(normalize_pointer_argument(_7)),
@@ -184,11 +178,8 @@ namespace omni::detail {
                  "movq %[a9], 72(%%rsp)\n"
                  "syscall\n"
                  "add $80, %%rsp"
-      : "=a"(status), "+d"(_2)
+      : "=a"(status), "+r"(a1), "+r"(a3), "+r"(a4), "+d"(_2)
       : "a"(id),
-      "r"(a1),
-      "r"(a3),
-      "r"(a4),
       [a5] "re"(normalize_pointer_argument(_5)),
       [a6] "re"(normalize_pointer_argument(_6)),
       [a7] "re"(normalize_pointer_argument(_7)),
@@ -215,11 +206,8 @@ namespace omni::detail {
                  "movq %[a10], 80(%%rsp)\n"
                  "syscall\n"
                  "add $96, %%rsp"
-      : "=a"(status), "+d"(_2)
+      : "=a"(status), "+r"(a1), "+r"(a3), "+r"(a4), "+d"(_2)
       : "a"(id),
-      "r"(a1),
-      "r"(a3),
-      "r"(a4),
       [a5] "re"(normalize_pointer_argument(_5)),
       [a6] "re"(normalize_pointer_argument(_6)),
       [a7] "re"(normalize_pointer_argument(_7)),
@@ -248,11 +236,8 @@ namespace omni::detail {
                  "movq %[a11], 88(%%rsp)\n"
                  "syscall\n"
                  "add $96, %%rsp"
-      : "=a"(status), "+d"(_2)
+      : "=a"(status), "+r"(a1), "+r"(a3), "+r"(a4), "+d"(_2)
       : "a"(id),
-      "r"(a1),
-      "r"(a3),
-      "r"(a4),
       [a5] "re"(normalize_pointer_argument(_5)),
       [a6] "re"(normalize_pointer_argument(_6)),
       [a7] "re"(normalize_pointer_argument(_7)),
@@ -284,11 +269,8 @@ namespace omni::detail {
                  "movq %[a12], 96(%%rsp)\n"
                  "syscall\n"
                  "add $112, %%rsp"
-      : "=a"(status), "+d"(_2)
+      : "=a"(status), "+r"(a1), "+r"(a3), "+r"(a4), "+d"(_2)
       : "a"(id),
-      "r"(a1),
-      "r"(a3),
-      "r"(a4),
       [a5] "re"(normalize_pointer_argument(_5)),
       [a6] "re"(normalize_pointer_argument(_6)),
       [a7] "re"(normalize_pointer_argument(_7)),
@@ -322,11 +304,8 @@ namespace omni::detail {
                  "movq %[a13], 104(%%rsp)\n"
                  "syscall\n"
                  "add $112, %%rsp"
-      : "=a"(status), "+d"(_2)
+      : "=a"(status), "+r"(a1), "+r"(a3), "+r"(a4), "+d"(_2)
       : "a"(id),
-      "r"(a1),
-      "r"(a3),
-      "r"(a4),
       [a5] "re"(normalize_pointer_argument(_5)),
       [a6] "re"(normalize_pointer_argument(_6)),
       [a7] "re"(normalize_pointer_argument(_7)),
