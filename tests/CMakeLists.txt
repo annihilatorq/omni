@@ -1,4 +1,8 @@
-cmake_minimum_required(VERSION 3.31)
+if(CMAKE_VERSION VERSION_LESS 3.31)
+  message(FATAL_ERROR "[OMNI] Building tests requires CMake 3.31 or newer (found ${CMAKE_VERSION})")
+endif()
+
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 include(OmniUseUT)
 
