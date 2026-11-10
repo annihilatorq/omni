@@ -60,95 +60,93 @@ namespace {
 } // namespace
 
 int main() {
-  ut::suite get_export_suite = [] {
-    "name lookup resolves forwarded exports that target regular modules"_test = [] {
-      auto forwarded_export = find_forwarded_export(std::not_fn(targets_api_set));
+  "name lookup resolves forwarded exports that target regular modules"_test = [] {
+    auto forwarded_export = find_forwarded_export(std::not_fn(targets_api_set));
 
-      require(forwarded_export.has_value());
+    require(forwarded_export.has_value());
 
-      omni::default_hash export_name_hash{omni::hash<omni::default_hash>(forwarded_export->export_entry.name)};
-      omni::default_hash module_name_hash{omni::hash<omni::default_hash>(forwarded_export->module.wname())};
+    omni::default_hash export_name_hash{omni::hash<omni::default_hash>(forwarded_export->export_entry.name)};
+    omni::default_hash module_name_hash{omni::hash<omni::default_hash>(forwarded_export->module.wname())};
 
-      auto exports = forwarded_export->module.named_exports();
-      auto raw_export = exports.find(export_name_hash);
-      auto resolved_by_module = omni::get_export(export_name_hash, forwarded_export->module);
-      auto resolved_by_module_name = omni::get_export(export_name_hash, module_name_hash);
+    auto exports = forwarded_export->module.named_exports();
+    auto raw_export = exports.find(export_name_hash);
+    auto resolved_by_module = omni::get_export(export_name_hash, forwarded_export->module);
+    auto resolved_by_module_name = omni::get_export(export_name_hash, module_name_hash);
 
-      require(raw_export != exports.end());
-      expect(raw_export->is_forwarded());
-      expect(raw_export->forwarder_string.present());
-      expect(raw_export->forwarder_string.module == forwarded_export->forwarder.module);
-      expect(raw_export->forwarder_string.function == forwarded_export->forwarder.function);
+    require(raw_export != exports.end());
+    expect(raw_export->is_forwarded());
+    expect(raw_export->forwarder_string.present());
+    expect(raw_export->forwarder_string.module == forwarded_export->forwarder.module);
+    expect(raw_export->forwarder_string.function == forwarded_export->forwarder.function);
 
-      expect(resolved_by_module.present());
-      expect(resolved_by_module_name.present());
-      expect(not resolved_by_module.is_forwarded());
-      expect(not resolved_by_module_name.is_forwarded());
-      expect(resolved_by_module.address == forwarded_export->resolved_address);
-      expect(resolved_by_module_name.address == forwarded_export->resolved_address);
-      expect(resolved_by_module.address != raw_export->address);
-      expect(resolved_by_module_name.address != raw_export->address);
-      expect(resolved_by_module.module_base != forwarded_export->module.base_address());
-      expect(resolved_by_module_name.module_base != forwarded_export->module.base_address());
-      expect(not resolved_by_module.forwarder_string.present());
-      expect(not resolved_by_module_name.forwarder_string.present());
-      expect(not resolved_by_module.forwarder_api_set.has_value());
-      expect(not resolved_by_module_name.forwarder_api_set.has_value());
-    };
+    expect(resolved_by_module.present());
+    expect(resolved_by_module_name.present());
+    expect(not resolved_by_module.is_forwarded());
+    expect(not resolved_by_module_name.is_forwarded());
+    expect(resolved_by_module.address == forwarded_export->resolved_address);
+    expect(resolved_by_module_name.address == forwarded_export->resolved_address);
+    expect(resolved_by_module.address != raw_export->address);
+    expect(resolved_by_module_name.address != raw_export->address);
+    expect(resolved_by_module.module_base != forwarded_export->module.base_address());
+    expect(resolved_by_module_name.module_base != forwarded_export->module.base_address());
+    expect(not resolved_by_module.forwarder_string.present());
+    expect(not resolved_by_module_name.forwarder_string.present());
+    expect(not resolved_by_module.forwarder_api_set.has_value());
+    expect(not resolved_by_module_name.forwarder_api_set.has_value());
+  };
 
-    "name and ordinal lookup resolve forwarded exports that target api sets"_test = [] {
-      auto forwarded_export = find_forwarded_export(targets_api_set);
+  "name and ordinal lookup resolve forwarded exports that target api sets"_test = [] {
+    auto forwarded_export = find_forwarded_export(targets_api_set);
 
-      require(forwarded_export.has_value());
+    require(forwarded_export.has_value());
 
-      omni::default_hash export_name_hash{omni::hash<omni::default_hash>(forwarded_export->export_entry.name)};
-      omni::default_hash module_name_hash{omni::hash<omni::default_hash>(forwarded_export->module.wname())};
-      auto forwarder_api_set = omni::get_api_set(omni::hash<omni::default_hash>(forwarded_export->forwarder.module));
+    omni::default_hash export_name_hash{omni::hash<omni::default_hash>(forwarded_export->export_entry.name)};
+    omni::default_hash module_name_hash{omni::hash<omni::default_hash>(forwarded_export->module.wname())};
+    auto forwarder_api_set = omni::get_api_set(omni::hash<omni::default_hash>(forwarded_export->forwarder.module));
 
-      auto named_exports = forwarded_export->module.named_exports();
-      auto ordinal_exports = forwarded_export->module.ordinal_exports();
-      auto raw_by_name = named_exports.find(export_name_hash);
-      auto raw_by_ordinal = ordinal_exports.find(forwarded_export->export_entry.ordinal);
-      auto resolved_by_name = omni::get_export(export_name_hash, forwarded_export->module);
-      auto resolved_by_module_name = omni::get_export(export_name_hash, module_name_hash);
-      auto resolved_by_ordinal =
-        omni::get_export(forwarded_export->export_entry.ordinal, forwarded_export->module, omni::use_ordinal);
-      auto resolved_by_module_name_ordinal =
-        omni::get_export(forwarded_export->export_entry.ordinal, module_name_hash, omni::use_ordinal);
+    auto named_exports = forwarded_export->module.named_exports();
+    auto ordinal_exports = forwarded_export->module.ordinal_exports();
+    auto raw_by_name = named_exports.find(export_name_hash);
+    auto raw_by_ordinal = ordinal_exports.find(forwarded_export->export_entry.ordinal);
+    auto resolved_by_name = omni::get_export(export_name_hash, forwarded_export->module);
+    auto resolved_by_module_name = omni::get_export(export_name_hash, module_name_hash);
+    auto resolved_by_ordinal =
+      omni::get_export(forwarded_export->export_entry.ordinal, forwarded_export->module, omni::use_ordinal);
+    auto resolved_by_module_name_ordinal =
+      omni::get_export(forwarded_export->export_entry.ordinal, module_name_hash, omni::use_ordinal);
 
-      require(forwarder_api_set.present());
-      require(raw_by_name != named_exports.end());
-      require(raw_by_ordinal != ordinal_exports.end());
-      expect(raw_by_name->is_forwarded());
-      expect(raw_by_ordinal->is_forwarded());
-      expect(raw_by_name->forwarder_string.present());
-      expect(raw_by_ordinal->forwarder_string.present());
-      expect(raw_by_name->forwarder_string.module == forwarded_export->forwarder.module);
-      expect(raw_by_ordinal->forwarder_string.module == forwarded_export->forwarder.module);
+    require(forwarder_api_set.present());
+    require(raw_by_name != named_exports.end());
+    require(raw_by_ordinal != ordinal_exports.end());
+    expect(raw_by_name->is_forwarded());
+    expect(raw_by_ordinal->is_forwarded());
+    expect(raw_by_name->forwarder_string.present());
+    expect(raw_by_ordinal->forwarder_string.present());
+    expect(raw_by_name->forwarder_string.module == forwarded_export->forwarder.module);
+    expect(raw_by_ordinal->forwarder_string.module == forwarded_export->forwarder.module);
 
-      expect(resolved_by_name.present());
-      expect(resolved_by_module_name.present());
-      expect(resolved_by_ordinal.present());
-      expect(resolved_by_module_name_ordinal.present());
+    expect(resolved_by_name.present());
+    expect(resolved_by_module_name.present());
+    expect(resolved_by_ordinal.present());
+    expect(resolved_by_module_name_ordinal.present());
 
-      expect(not resolved_by_name.is_forwarded());
-      expect(not resolved_by_module_name.is_forwarded());
-      expect(not resolved_by_ordinal.is_forwarded());
-      expect(not resolved_by_module_name_ordinal.is_forwarded());
+    expect(not resolved_by_name.is_forwarded());
+    expect(not resolved_by_module_name.is_forwarded());
+    expect(not resolved_by_ordinal.is_forwarded());
+    expect(not resolved_by_module_name_ordinal.is_forwarded());
 
-      expect(resolved_by_name.address == forwarded_export->resolved_address);
-      expect(resolved_by_module_name.address == forwarded_export->resolved_address);
-      expect(resolved_by_ordinal.address == forwarded_export->resolved_address);
-      expect(resolved_by_module_name_ordinal.address == forwarded_export->resolved_address);
+    expect(resolved_by_name.address == forwarded_export->resolved_address);
+    expect(resolved_by_module_name.address == forwarded_export->resolved_address);
+    expect(resolved_by_ordinal.address == forwarded_export->resolved_address);
+    expect(resolved_by_module_name_ordinal.address == forwarded_export->resolved_address);
 
-      expect(resolved_by_name.address != raw_by_name->address);
-      expect(resolved_by_ordinal.address != raw_by_ordinal->address);
-      expect(resolved_by_name.module_base != forwarded_export->module.base_address());
-      expect(resolved_by_ordinal.module_base != forwarded_export->module.base_address());
-      expect(not resolved_by_name.forwarder_string.present());
-      expect(not resolved_by_ordinal.forwarder_string.present());
-      expect(not resolved_by_name.forwarder_api_set.has_value());
-      expect(not resolved_by_ordinal.forwarder_api_set.has_value());
-    };
+    expect(resolved_by_name.address != raw_by_name->address);
+    expect(resolved_by_ordinal.address != raw_by_ordinal->address);
+    expect(resolved_by_name.module_base != forwarded_export->module.base_address());
+    expect(resolved_by_ordinal.module_base != forwarded_export->module.base_address());
+    expect(not resolved_by_name.forwarder_string.present());
+    expect(not resolved_by_ordinal.forwarder_string.present());
+    expect(not resolved_by_name.forwarder_api_set.has_value());
+    expect(not resolved_by_ordinal.forwarder_api_set.has_value());
   };
 }
