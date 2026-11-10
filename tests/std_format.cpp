@@ -6,7 +6,7 @@
 #include "omni/status.hpp"
 #include "test_utils.hpp"
 
-ut::suite<"std::format"> std_format_suite = [] {
+int main() {
   "formats initialized and uninitialized omni::module"_test = [] {
     omni::module empty_module;
     omni::module ntdll = omni::get_module("ntdll.dll");
@@ -65,4 +65,4 @@ ut::suite<"std::format"> std_format_suite = [] {
     expect(std::format("{}", omni::default_hash{}) == std::to_string(omni::default_hash::initial_value));
     expect(std::format("{}", default_hash) == std::to_string(default_hash.value()));
   };
-};
+}

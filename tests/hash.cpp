@@ -1,7 +1,7 @@
 #include "omni/hash.hpp"
 #include "test_utils.hpp"
 
-ut::suite<"omni::hash"> hash_suite = [] {
+int main() {
   using namespace omni::literals;
 
   "hash literals match explicitly constructed hash values"_test = [] {
@@ -67,4 +67,4 @@ ut::suite<"omni::hash"> hash_suite = [] {
     expect("abc"_fnv1a64 != "abcd"_fnv1a64);
     expect("abc"_fnv1a64 != "abc "_fnv1a64);
   };
-};
+}

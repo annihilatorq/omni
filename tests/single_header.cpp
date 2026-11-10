@@ -2,16 +2,13 @@
 
 #include "../single_header/omni.hpp"
 
-#include <boost/ut.hpp>
+#include <ut/ut.hpp>
 
-namespace ut = boost::ut;
-using ut::expect;
-using ut::fatal;
-using ut::operator""_test;
+using namespace ut;
 
 using get_current_process_id_fn = DWORD(WINAPI*)();
 
-ut::suite<"omni single header"> single_header_suite = [] {
+int main() {
   "single header exposes compile-time utilities"_test = [] {
     using namespace omni::literals;
 
@@ -22,15 +19,15 @@ ut::suite<"omni single header"> single_header_suite = [] {
   "single header resolves and invokes a WinAPI export"_test = [] {
     omni::lazy_importer<get_current_process_id_fn> get_current_process_id{"GetCurrentProcessId", "kernel32.dll"};
 
-    expect(fatal(get_current_process_id.named_export().present()));
+    require(get_current_process_id.named_export().present());
     expect(get_current_process_id() == ::GetCurrentProcessId());
   };
 
   "single header closes an owned kernel handle"_test = [] {
     omni::unique_handle handle{::CreateEventW(nullptr, TRUE, FALSE, nullptr)};
 
-    expect(fatal(handle.valid()));
+    require(handle.valid());
     expect(handle.close() == omni::ntstatus::success);
     expect(not handle.valid());
   };
-};
+}

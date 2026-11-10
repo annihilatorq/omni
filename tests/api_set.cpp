@@ -14,7 +14,7 @@ namespace {
 
 } // namespace
 
-ut::suite<"omni::api_set"> api_set_suite = [] {
+int main() {
   "default constructed api_set is empty"_test = [] {
     omni::api_set api_set{};
     omni::api_set_hosts hosts = api_set.hosts();
@@ -41,8 +41,8 @@ ut::suite<"omni::api_set"> api_set_suite = [] {
       return default_host.has_value() && !default_host->value.empty();
     });
 
-    expect(fatal(static_cast<bool>(api_query)));
-    expect(fatal(implemented_api_set != api_sets.end()));
+    require(static_cast<bool>(api_query));
+    require(implemented_api_set != api_sets.end());
 
     auto module_base_name =
       tests::query_api_set_module_base_name(api_query, tests::narrow_ascii(implemented_api_set->contract_name()));
@@ -51,8 +51,8 @@ ut::suite<"omni::api_set"> api_set_suite = [] {
 
     expect(SUCCEEDED(module_base_name.hr));
     expect(not module_base_name.module_base_name.empty());
-    expect(fatal(default_host.has_value()));
-    expect(fatal(resolved_host.has_value()));
+    require(default_host.has_value());
+    require(resolved_host.has_value());
     expect(equal_module_name(default_host->value, module_base_name.module_base_name));
     expect(equal_module_name(resolved_host->value, module_base_name.module_base_name));
   };
@@ -70,21 +70,21 @@ ut::suite<"omni::api_set"> api_set_suite = [] {
         [](const omni::api_set_host& host) { return !host.alias.empty() && !host.value.empty(); });
     });
 
-    expect(fatal(aliased_api_set != api_sets.end()));
+    require(aliased_api_set != api_sets.end());
 
     auto default_host = aliased_api_set->default_host();
     auto hosts = aliased_api_set->hosts();
     auto alias_host =
       std::ranges::find_if(hosts, [](const omni::api_set_host& host) { return !host.alias.empty() && !host.value.empty(); });
 
-    expect(fatal(default_host.has_value()));
-    expect(fatal(alias_host != hosts.end()));
+    require(default_host.has_value());
+    require(alias_host != hosts.end());
     auto resolved_host = aliased_api_set->resolve_host(alias_host->alias);
     auto resolved_default_host = aliased_api_set->resolve_host();
-    expect(fatal(resolved_host.has_value()));
-    expect(fatal(resolved_default_host.has_value()));
+    require(resolved_host.has_value());
+    require(resolved_default_host.has_value());
     expect(resolved_host->alias == alias_host->alias);
     expect(resolved_host->value == alias_host->value);
     expect(resolved_default_host->value == default_host->value);
   };
-};
+}

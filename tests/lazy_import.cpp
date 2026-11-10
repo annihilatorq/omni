@@ -1,7 +1,7 @@
 #include <Windows.h>
 
-#include <boost/ut.hpp>
 #include <cstdint>
+#include <ut/ut.hpp>
 
 #include "omni/lazy_import.hpp"
 
@@ -41,13 +41,13 @@ namespace {
 
 } // namespace
 
-ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
+int main() {
   "missing export reports export_not_found and returns a default value"_test = [] {
     tests::loaded_library version_dll{L"version.dll"};
     omni::lazy_importer<DWORD> importer{"MissingExportForOmniTests", "version.dll"};
     auto result = importer.try_invoke();
 
-    expect(fatal(static_cast<bool>(version_dll)));
+    require(static_cast<bool>(version_dll));
 
     expect(not importer.named_export().present());
     expect(not result.has_value());
@@ -74,8 +74,8 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     omni::named_export expected_export = omni::get_export(export_name, kernel32);
     HMODULE direct_result = ::GetModuleHandleW(L"kernel32.dll");
 
-    expect(fatal(direct_result != nullptr));
-    expect(fatal(expected_export.present()));
+    require(direct_result != nullptr);
+    require(expected_export.present());
     expect(result.has_value());
 
     expect(*result == direct_result);
@@ -90,7 +90,7 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     omni::lazy_importer<void> importer{"SetLastError"};
     auto first_result = importer.try_invoke(0x1234U);
 
-    expect(fatal(importer.named_export().present()));
+    require(importer.named_export().present());
     expect(first_result.has_value());
     expect(::GetLastError() == 0x1234U);
 
@@ -116,10 +116,10 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     auto try_result = importer.try_invoke(version_path.c_str(), &lazy_handle);
     DWORD operator_result = importer(version_path.c_str(), &operator_handle);
 
-    expect(fatal(static_cast<bool>(version_dll)));
-    expect(fatal(version_module.present()));
-    expect(fatal(direct_function != nullptr));
-    expect(fatal(expected_export.present()));
+    require(static_cast<bool>(version_dll));
+    require(version_module.present());
+    require(direct_function != nullptr);
+    require(expected_export.present());
     expect(try_result.has_value());
 
     expect(*try_result == direct_result);
@@ -143,7 +143,7 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     DWORD by_auto_function = omni::lazy_import<::GetCurrentProcessId>();
     DWORD by_auto_function_with_module = omni::lazy_import<::GetCurrentProcessId, "kernel32.dll">();
 
-    expect(fatal(direct_kernel32 != nullptr));
+    require(direct_kernel32 != nullptr);
 
     expect(by_return_type == direct_process_id);
     expect(by_typed_hash_pair == direct_kernel32);
@@ -165,8 +165,8 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     omni::lazy_importer<DWORD> global_importer{export_name};
     omni::lazy_importer<DWORD> module_importer{export_name, module_name};
 
-    expect(fatal(global_importer.named_export().present()));
-    expect(fatal(module_importer.named_export().present()));
+    require(global_importer.named_export().present());
+    require(module_importer.named_export().present());
 
     expect(omni::detail::exports_cache.contains(global_key));
     expect(omni::detail::exports_cache.contains(module_key));
@@ -183,7 +183,7 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     omni::lazy_importer<DWORD> importer{export_name, module_name};
     auto result = importer.try_invoke();
 
-    expect(fatal(static_cast<bool>(version_dll)));
+    require(static_cast<bool>(version_dll));
     expect(not result.has_value());
     expect(result.error() == make_error_code(omni::error::export_not_found));
     expect(not omni::detail::exports_cache.contains(cache_key));
@@ -211,10 +211,10 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
     omni::lazy_importer<DWORD> importer{export_name, module_name};
     auto cached_export = omni::detail::exports_cache.try_get(cache_key);
 
-    expect(fatal(static_cast<bool>(version_dll)));
-    expect(fatal(version_module.present()));
-    expect(fatal(expected_export.present()));
-    expect(fatal(cached_export.has_value()));
+    require(static_cast<bool>(version_dll));
+    require(version_module.present());
+    require(expected_export.present());
+    require(cached_export.has_value());
 
     expect(importer.named_export().address == expected_export.address);
     expect(importer.named_export().module_base == expected_export.module_base);
@@ -223,4 +223,4 @@ ut::suite<"omni::lazy_import"> lazy_import_suite = [] {
   };
 
 #endif
-};
+}

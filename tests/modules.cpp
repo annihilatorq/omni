@@ -10,7 +10,7 @@
 
 namespace tests = omni::tests;
 
-ut::suite<"omni::modules"> modules_suite = [] {
+int main() {
   "begin points at the process image"_test = [] {
     omni::modules loaded_modules{};
     HMODULE executable_handle = ::GetModuleHandleW(nullptr);
@@ -81,7 +81,7 @@ ut::suite<"omni::modules"> modules_suite = [] {
     omni::default_hash kernel32_hash{L"kernel32"};
     omni::default_hash kernel32_dll_hash{L"kernel32.dll"};
 
-    expect(fatal(kernel32_handle != nullptr));
+    require(kernel32_handle != nullptr);
 
     omni::modules loaded_modules{};
     auto by_address = loaded_modules.find(kernel32_address);
@@ -97,8 +97,8 @@ ut::suite<"omni::modules"> modules_suite = [] {
 
     expect(by_address != loaded_modules.end());
     expect(by_name != loaded_modules.end());
-    expect(fatal(lookup_by_address.has_value()));
-    expect(fatal(lookup_by_name.has_value()));
+    require(lookup_by_address.has_value());
+    require(lookup_by_name.has_value());
     expect(by_predicate != loaded_modules.end());
     expect(!loaded_modules.lookup(omni::address{}).has_value());
     expect(!loaded_modules.lookup("omni-module-that-does-not-exist").has_value());
@@ -145,4 +145,4 @@ ut::suite<"omni::modules"> modules_suite = [] {
     expect(version_it->matches_name_hash(version_hash));
     expect(version_it->matches_name_hash(version_dll_hash));
   };
-};
+}

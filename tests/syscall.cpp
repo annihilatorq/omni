@@ -26,7 +26,7 @@ namespace {
 
 } // namespace
 
-ut::suite<"omni::syscall"> syscall_suite = [] {
+int main() {
   "missing export reports export_not_found"_test = [] {
     omni::syscaller<omni::status> caller{"MissingSyscallForOmniTests"};
     auto result = caller.try_invoke();
@@ -41,8 +41,8 @@ ut::suite<"omni::syscall"> syscall_suite = [] {
     omni::syscaller<omni::status> caller{"RtlGetVersion"};
     auto result = caller.try_invoke();
 
-    expect(fatal(ntdll_handle != nullptr));
-    expect(fatal(rtl_get_version != nullptr));
+    require(ntdll_handle != nullptr);
+    require(rtl_get_version != nullptr);
     expect(not result.has_value());
     expect(result.error() == make_error_code(omni::error::syscall_id_not_found));
   };
@@ -73,8 +73,8 @@ ut::suite<"omni::syscall"> syscall_suite = [] {
     auto syscall_status =
       caller.try_invoke(::GetCurrentProcess(), 0U, &syscall_info, sizeof(syscall_info), &syscall_return_length);
 
-    expect(fatal(ntdll_handle != nullptr));
-    expect(fatal(direct_function != nullptr));
+    require(ntdll_handle != nullptr);
+    require(direct_function != nullptr);
     expect(parser_calls == 1);
     expect(parsed_address == direct_function);
     expect(syscall_status.has_value());
@@ -156,9 +156,9 @@ ut::suite<"omni::syscall"> syscall_suite = [] {
     auto syscall_status =
       caller.try_invoke(::GetCurrentProcess(), 0U, &syscall_info, sizeof(syscall_info), &syscall_return_length);
 
-    expect(fatal(omni::detail::is_x64));
-    expect(fatal(ntdll_handle != nullptr));
-    expect(fatal(direct_function != nullptr));
+    require(omni::detail::is_x64);
+    require(ntdll_handle != nullptr);
+    require(direct_function != nullptr);
     expect(syscall_status.has_value());
 
     expect(syscall_status->value == direct_status.value);
@@ -200,7 +200,7 @@ ut::suite<"omni::syscall"> syscall_suite = [] {
       sizeof(free_generic_info),
       &free_generic_return_length);
 
-    expect(fatal(typed_status.has_value()));
+    require(typed_status.has_value());
 
     expect(typed_status->is_success());
     expect(free_typed_status.is_success());
@@ -259,8 +259,8 @@ ut::suite<"omni::syscall"> syscall_suite = [] {
     auto named_export = omni::get_export("NtQueryInformationProcess");
     auto syscall_id = omni::default_syscall_id_parser{}(named_export);
 
-    expect(fatal(named_export.present()));
-    expect(fatal(syscall_id.has_value()));
+    require(named_export.present());
+    require(syscall_id.has_value());
 
     auto invoke_query_information_process =
       [&](omni::shellcode_syscall_invoker& invoker, process_basic_information& syscall_info, ULONG& syscall_return_length) {
@@ -307,8 +307,8 @@ ut::suite<"omni::syscall"> syscall_suite = [] {
     auto named_export = omni::get_export("NtQueryInformationProcess");
     auto syscall_id = omni::default_syscall_id_parser{}(named_export);
 
-    expect(fatal(named_export.present()));
-    expect(fatal(syscall_id.has_value()));
+    require(named_export.present());
+    require(syscall_id.has_value());
 
     auto invoke_query_information_process =
       [&](omni::shellcode_syscall_invoker& invoker, process_basic_information& syscall_info, ULONG& syscall_return_length) {
@@ -372,8 +372,8 @@ ut::suite<"omni::syscall"> syscall_suite = [] {
     ULONG direct_return_length{};
     ULONG cached_return_length{};
 
-    expect(fatal(ntdll_handle != nullptr));
-    expect(fatal(direct_function != nullptr));
+    require(ntdll_handle != nullptr);
+    require(direct_function != nullptr);
     expect(cached_syscall_id.has_value());
     expect(omni::detail::syscall_id_cache.contains(syscall_name.value()));
     expect(omni::detail::syscall_id_cache.size() == 1U);
@@ -418,4 +418,4 @@ ut::suite<"omni::syscall"> syscall_suite = [] {
   };
 
 #endif
-};
+}

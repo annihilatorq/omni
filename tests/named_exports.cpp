@@ -1,7 +1,7 @@
 #include <Windows.h>
 
-#include <boost/ut.hpp>
 #include <iterator>
+#include <ut/ut.hpp>
 
 #include "omni/concepts/export_range.hpp"
 #include "omni/module.hpp"
@@ -12,7 +12,7 @@ namespace tests = omni::tests;
 
 static_assert(omni::concepts::export_range<omni::named_exports, omni::default_hash, omni::named_export>);
 
-ut::suite<"omni::named_exports"> named_exports_suite = [] {
+int main() {
   "default constructed exports are empty"_test = [] {
     omni::named_exports exports{};
 
@@ -32,9 +32,9 @@ ut::suite<"omni::named_exports"> named_exports_suite = [] {
     const IMAGE_EXPORT_DIRECTORY* export_directory = tests::get_export_directory(version_dll.handle);
     auto named_export_entries = tests::get_named_export_table_entries(version_dll.handle);
 
-    expect(fatal(static_cast<bool>(version_dll)));
-    expect(fatal(version_module.present()));
-    expect(fatal(export_directory != nullptr));
+    require(static_cast<bool>(version_dll));
+    require(version_module.present());
+    require(export_directory != nullptr);
 
     expect(omni::address{exports.directory()} == export_directory);
     expect(exports.size() == named_export_entries.size());
@@ -48,9 +48,9 @@ ut::suite<"omni::named_exports"> named_exports_suite = [] {
     auto named_export_entries = tests::get_named_export_table_entries(version_dll.handle);
     std::size_t name_index{};
 
-    expect(fatal(static_cast<bool>(version_dll)));
-    expect(fatal(version_module.present()));
-    expect(fatal(not named_export_entries.empty()));
+    require(static_cast<bool>(version_dll));
+    require(version_module.present());
+    require(not named_export_entries.empty());
 
     for (const omni::named_export& export_entry : exports) {
       expect(name_index < named_export_entries.size());
@@ -87,13 +87,13 @@ ut::suite<"omni::named_exports"> named_exports_suite = [] {
     auto by_predicate = exports.find_if(
       [export_address](const omni::named_export& named_export) { return named_export.address == export_address; });
 
-    expect(fatal(static_cast<bool>(version_dll)));
-    expect(fatal(version_module.present()));
-    expect(fatal(export_entry != nullptr));
-    expect(fatal(export_address != nullptr));
+    require(static_cast<bool>(version_dll));
+    require(version_module.present());
+    require(export_entry != nullptr);
+    require(export_address != nullptr);
 
     expect(by_name != exports.end());
-    expect(fatal(by_lookup.has_value()));
+    require(by_lookup.has_value());
     expect(by_predicate != exports.end());
 
     expect(by_name->name == export_entry->name);
@@ -121,10 +121,10 @@ ut::suite<"omni::named_exports"> named_exports_suite = [] {
     FARPROC resolved_address =
       forwarded_export == nullptr ? nullptr : ::GetProcAddress(kernel32_handle, forwarded_export->name.data());
 
-    expect(fatal(kernel32_handle != nullptr));
-    expect(fatal(kernel32_module.present()));
-    expect(fatal(forwarded_export != nullptr));
-    expect(fatal(resolved_address != nullptr));
+    require(kernel32_handle != nullptr);
+    require(kernel32_module.present());
+    require(forwarded_export != nullptr);
+    require(resolved_address != nullptr);
     expect(by_name != exports.end());
 
     expect(by_name->is_forwarded());
@@ -148,9 +148,9 @@ ut::suite<"omni::named_exports"> named_exports_suite = [] {
     auto expected_forwarder =
       forwarded_export == nullptr ? omni::forwarder_string{} : omni::forwarder_string::parse(raw_forwarder_string);
 
-    expect(fatal(kernel32_handle != nullptr));
-    expect(fatal(kernel32_module.present()));
-    expect(fatal(forwarded_export != nullptr));
+    require(kernel32_handle != nullptr);
+    require(kernel32_module.present());
+    require(forwarded_export != nullptr);
     expect(by_name != exports.end());
 
     expect(by_name->is_forwarded());
@@ -160,4 +160,4 @@ ut::suite<"omni::named_exports"> named_exports_suite = [] {
     expect(by_name->forwarder_string.function == expected_forwarder.function);
     expect(by_name->forwarder_string.is_ordinal() == expected_forwarder.is_ordinal());
   };
-};
+}

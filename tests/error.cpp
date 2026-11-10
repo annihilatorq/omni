@@ -3,12 +3,13 @@
 #include <string>
 #include <string_view>
 #include <system_error>
-#include <utility>
 
 #include "omni/error.hpp"
-#include "test_utils.hpp"
+#include "ut/ut.hpp"
 
-ut::suite<"omni::error"> error_suite = [] {
+using namespace ut;
+
+int main() {
   "make_error_code keeps the NTSTATUS value and uses the nt category"_test = [] {
     const auto error = omni::make_error_code(omni::ntstatus::access_denied);
 
@@ -55,4 +56,4 @@ ut::suite<"omni::error"> error_suite = [] {
   };
 
 #endif
-};
+}

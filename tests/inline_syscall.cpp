@@ -22,15 +22,15 @@ namespace {
 
 } // namespace
 
-ut::suite<"omni::inline_syscall"> inline_syscall_suite = [] {
+int main() {
   "inline syscaller reports syscall_id_not_found for non-syscall exports"_test = [] {
     HMODULE ntdll_handle = ::GetModuleHandleW(L"ntdll.dll");
     FARPROC rtl_get_version = ::GetProcAddress(ntdll_handle, "RtlGetVersion");
     omni::inline_syscaller<omni::status> caller{"RtlGetVersion"};
     auto result = caller.try_invoke();
 
-    expect(fatal(ntdll_handle != nullptr));
-    expect(fatal(rtl_get_version != nullptr));
+    require(ntdll_handle != nullptr);
+    require(rtl_get_version != nullptr);
     expect(not result.has_value());
     expect(result.error() == make_error_code(omni::error::syscall_id_not_found));
   };
@@ -50,8 +50,8 @@ ut::suite<"omni::inline_syscall"> inline_syscall_suite = [] {
       direct_function(::GetCurrentProcess(), 0U, &direct_info, sizeof(direct_info), &direct_return_length);
     auto inline_status = caller.try_invoke(::GetCurrentProcess(), 0U, &inline_info, sizeof(inline_info), &inline_return_length);
 
-    expect(fatal(ntdll_handle != nullptr));
-    expect(fatal(direct_function != nullptr));
+    require(ntdll_handle != nullptr);
+    require(direct_function != nullptr);
     expect(inline_status.has_value());
 
     expect(inline_status->value == direct_status.value);
@@ -93,7 +93,7 @@ ut::suite<"omni::inline_syscall"> inline_syscall_suite = [] {
       sizeof(free_generic_info),
       &free_generic_return_length);
 
-    expect(fatal(typed_status.has_value()));
+    require(typed_status.has_value());
 
     expect(typed_status->is_success());
     expect(free_typed_status.is_success());
@@ -106,6 +106,6 @@ ut::suite<"omni::inline_syscall"> inline_syscall_suite = [] {
     expect(typed_info.unique_process_id == free_typed_info.unique_process_id);
     expect(typed_info.unique_process_id == free_generic_info.unique_process_id);
   };
-};
+}
 
 #endif

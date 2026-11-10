@@ -41,14 +41,14 @@ namespace {
 
 } // namespace
 
-ut::suite<"omni::kernel_modules"> kernel_modules_suite = [] {
+int main() {
   "snapshot enumerates the kernel image"_test = [] {
     auto snapshot = take_snapshot();
     if (!snapshot) {
       return;
     }
 
-    expect(fatal(!snapshot->empty()));
+    require(!snapshot->empty());
     expect(std::ranges::distance(*snapshot) == static_cast<std::ptrdiff_t>(snapshot->size()));
     for (const omni::kernel_module& module : *snapshot) {
       expect(!module.path().empty());
@@ -58,7 +58,7 @@ ut::suite<"omni::kernel_modules"> kernel_modules_suite = [] {
     }
 
     const auto kernel = std::ranges::find_if(*snapshot, is_kernel_image);
-    expect(fatal(kernel != snapshot->end()));
+    require(kernel != snapshot->end());
     expect(kernel->size() != 0U);
   };
 
@@ -172,7 +172,7 @@ ut::suite<"omni::kernel_modules"> kernel_modules_suite = [] {
       return;
     }
 
-    expect(fatal(snapshot->size() > 1U));
+    require(snapshot->size() > 1U);
     auto it = snapshot->begin();
     const auto previous = it++;
     expect(previous == snapshot->begin());
@@ -193,7 +193,7 @@ ut::suite<"omni::kernel_modules"> kernel_modules_suite = [] {
     constexpr std::size_t memory_tolerance = 1U << 20U;
 
     const auto take_successful_snapshot = [] {
-      expect(fatal(omni::kernel_modules::snapshot().has_value()));
+      require(omni::kernel_modules::snapshot().has_value());
     };
 
     for (int i = 0; i < warmup_iterations; ++i) {
@@ -203,14 +203,14 @@ ut::suite<"omni::kernel_modules"> kernel_modules_suite = [] {
     bool stable_memory_usage = false;
     for (int attempt = 0; attempt < measurement_attempts; ++attempt) {
       const auto bytes_before = current_private_bytes();
-      expect(fatal(bytes_before.has_value()));
+      require(bytes_before.has_value());
 
       for (int i = 0; i < measured_iterations; ++i) {
         take_successful_snapshot();
       }
 
       const auto bytes_after = current_private_bytes();
-      expect(fatal(bytes_after.has_value()));
+      require(bytes_after.has_value());
       if (*bytes_after <= *bytes_before + memory_tolerance) {
         stable_memory_usage = true;
         break;
@@ -219,4 +219,4 @@ ut::suite<"omni::kernel_modules"> kernel_modules_suite = [] {
 
     expect(stable_memory_usage) << "virtual_free must release the buffer instead of growing private memory every batch";
   };
-};
+}

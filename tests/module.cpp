@@ -9,7 +9,7 @@
 
 namespace tests = omni::tests;
 
-ut::suite<"omni::module"> module_suite = [] {
+int main() {
   "default constructed module is empty"_test = [] {
     omni::module module{};
     omni::module other{};
@@ -25,8 +25,8 @@ ut::suite<"omni::module"> module_suite = [] {
     omni::module executable_module = tests::get_loaded_module(executable_handle);
     omni::module reconstructed{executable_module.entry()};
 
-    expect(fatal(executable_handle != nullptr));
-    expect(fatal(executable_module.present()));
+    require(executable_handle != nullptr);
+    require(executable_module.present());
 
     expect(reconstructed.present());
     expect(reconstructed.entry() == executable_module.entry());
@@ -39,8 +39,8 @@ ut::suite<"omni::module"> module_suite = [] {
     omni::win::image* image = executable_module.image();
     omni::address expected_entry_point = executable_module.base_address().offset(image->get_optional_header()->entry_point);
 
-    expect(fatal(executable_handle != nullptr));
-    expect(fatal(executable_module.present()));
+    require(executable_handle != nullptr);
+    require(executable_module.present());
 
     expect(executable_module.base_address() == executable_handle);
     expect(executable_module.native_handle() == executable_handle);
@@ -56,11 +56,11 @@ ut::suite<"omni::module"> module_suite = [] {
     HMODULE executable_handle = ::GetModuleHandleW(nullptr);
     omni::module executable_module = tests::get_loaded_module(executable_handle);
 
-    expect(fatal(executable_handle != nullptr));
-    expect(fatal(executable_module.present()));
+    require(executable_handle != nullptr);
+    require(executable_module.present());
 
     auto image_size = executable_module.image()->get_optional_header()->size_image;
-    expect(fatal(image_size > 0U));
+    require(image_size > 0U);
 
     auto image_begin = executable_module.base_address();
     auto image_end = image_begin.offset(image_size);
@@ -77,8 +77,8 @@ ut::suite<"omni::module"> module_suite = [] {
     omni::module kernel32_module = tests::get_loaded_module(kernel32_handle);
     auto kernel32_path = tests::get_module_path(kernel32_handle);
 
-    expect(fatal(kernel32_handle != nullptr));
-    expect(fatal(kernel32_module.present()));
+    require(kernel32_handle != nullptr);
+    require(kernel32_module.present());
 
     expect(std::wcscmp(kernel32_module.system_path().c_str(), kernel32_path.c_str()) == 0);
     expect(kernel32_module.wname() == kernel32_path.filename().wstring());
@@ -90,8 +90,8 @@ ut::suite<"omni::module"> module_suite = [] {
     std::string expected_name = version_module.system_path().filename().string();
     std::ostringstream output{};
 
-    expect(fatal(static_cast<bool>(version_dll)));
-    expect(fatal(version_module.present()));
+    require(static_cast<bool>(version_dll));
+    require(version_module.present());
 
     output << version_module;
 
@@ -103,8 +103,8 @@ ut::suite<"omni::module"> module_suite = [] {
     tests::loaded_library version_dll{L"version.dll"};
     omni::module version_module = tests::get_loaded_module(version_dll.handle);
 
-    expect(fatal(static_cast<bool>(version_dll)));
-    expect(fatal(version_module.present()));
+    require(static_cast<bool>(version_dll));
+    require(version_module.present());
 
     expect(version_module.matches_name_hash(L"version"));
     expect(version_module.matches_name_hash(L"version.dll"));
@@ -127,10 +127,10 @@ ut::suite<"omni::module"> module_suite = [] {
     auto export_directory_rva = version_module.image()->get_optional_header()->data_directories.export_directory.rva;
     auto* export_directory = version_module.base_address().ptr<omni::win::export_directory>(export_directory_rva);
 
-    expect(fatal(static_cast<bool>(version_dll)));
-    expect(fatal(version_module.present()));
-    expect(fatal(export_entry != nullptr));
-    expect(fatal(export_address != nullptr));
+    require(static_cast<bool>(version_dll));
+    require(version_module.present());
+    require(export_entry != nullptr);
+    require(export_address != nullptr);
 
     expect(named_exports.directory() != nullptr);
     expect(named_exports.directory() == export_directory);
@@ -147,4 +147,4 @@ ut::suite<"omni::module"> module_suite = [] {
     expect(ordinal_export_it->module_base == version_module.base_address());
     expect(ordinal_export_it->ordinal == export_entry->ordinal);
   };
-};
+}

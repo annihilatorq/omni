@@ -1,14 +1,14 @@
 #include "omni/detail/shellcode.hpp"
 #include "test_utils.hpp"
 
-ut::suite<"omni::detail::shellcode"> shellcode_suite = [] {
+int main() {
   "move construction transfers executable buffer ownership"_test = [] {
     omni::detail::shellcode<1> source{{0xC3}};
     source.setup();
 
     void* executable_buffer = source.ptr<void>();
 
-    expect(fatal(executable_buffer != nullptr));
+    require(executable_buffer != nullptr);
 
     omni::detail::shellcode<1> moved{std::move(source)};
 
@@ -27,8 +27,8 @@ ut::suite<"omni::detail::shellcode"> shellcode_suite = [] {
 
     void* executable_buffer = source.ptr<void>();
 
-    expect(fatal(executable_buffer != nullptr));
-    expect(fatal(target.ptr<void>() != nullptr));
+    require(executable_buffer != nullptr);
+    require(target.ptr<void>() != nullptr);
 
     target = std::move(source);
 
@@ -37,4 +37,4 @@ ut::suite<"omni::detail::shellcode"> shellcode_suite = [] {
 
     target.execute();
   };
-};
+}

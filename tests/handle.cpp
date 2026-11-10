@@ -47,15 +47,15 @@ namespace {
 
 } // namespace
 
-ut::suite<"omni::handle"> handle_suite = [] {
+int main() {
   "detail::nt_close matches ntdll NtClose for invalid and valid handles"_test = [] {
     auto direct_nt_close = get_direct_nt_close();
     HANDLE wrapper_handle = create_event_handle();
     HANDLE direct_handle = create_event_handle();
 
-    expect(fatal(direct_nt_close != nullptr));
-    expect(fatal(wrapper_handle != nullptr));
-    expect(fatal(direct_handle != nullptr));
+    require(direct_nt_close != nullptr);
+    require(wrapper_handle != nullptr);
+    require(direct_handle != nullptr);
 
     const omni::status wrapper_invalid_status = omni::detail::nt_close(nullptr);
     const omni::status direct_invalid_status = direct_nt_close(nullptr);
@@ -74,8 +74,8 @@ ut::suite<"omni::handle"> handle_suite = [] {
   "detail::nt_close closes a kernel handle"_test = [] {
     HANDLE handle = create_event_handle();
 
-    expect(fatal(handle != nullptr));
-    expect(fatal(is_open_os_handle(handle)));
+    require(handle != nullptr);
+    require(is_open_os_handle(handle));
 
     const omni::status status = omni::detail::nt_close(handle);
 
@@ -97,7 +97,7 @@ ut::suite<"omni::handle"> handle_suite = [] {
     HANDLE raw_handle = create_event_handle();
     omni::unique_handle handle{raw_handle};
 
-    expect(fatal(raw_handle != nullptr));
+    require(raw_handle != nullptr);
 
     expect(handle.get() == raw_handle);
     expect(handle.valid());
@@ -112,7 +112,7 @@ ut::suite<"omni::handle"> handle_suite = [] {
     HANDLE raw_handle = create_event_handle();
     omni::unique_handle handle{raw_handle};
 
-    expect(fatal(raw_handle != nullptr));
+    require(raw_handle != nullptr);
 
     HANDLE released = handle.release();
 
@@ -131,11 +131,11 @@ ut::suite<"omni::handle"> handle_suite = [] {
 
     const BOOL created = ::CreatePipe(read_end.out_ptr(), write_end.out_ptr(), nullptr, 0U);
 
-    expect(fatal(created != FALSE));
+    require(created != FALSE);
     expect(read_end.valid());
     expect(write_end.valid());
-    expect(fatal(is_open_os_handle(static_cast<HANDLE>(read_end.get()))));
-    expect(fatal(is_open_os_handle(static_cast<HANDLE>(write_end.get()))));
+    require(is_open_os_handle(static_cast<HANDLE>(read_end.get())));
+    require(is_open_os_handle(static_cast<HANDLE>(write_end.get())));
 
     auto released_read_end = static_cast<HANDLE>(read_end.release());
     auto released_write_end = static_cast<HANDLE>(write_end.release());
@@ -149,8 +149,8 @@ ut::suite<"omni::handle"> handle_suite = [] {
     HANDLE second = create_event_handle();
     omni::unique_handle handle{first};
 
-    expect(fatal(first != nullptr));
-    expect(fatal(second != nullptr));
+    require(first != nullptr);
+    require(second != nullptr);
 
     auto* out = handle.out_ptr();
 
@@ -173,7 +173,7 @@ ut::suite<"omni::handle"> handle_suite = [] {
     HANDLE raw_handle = create_event_handle();
     omni::unique_handle handle{raw_handle};
 
-    expect(fatal(raw_handle != nullptr));
+    require(raw_handle != nullptr);
 
     auto* out = handle.out_ptr();
 
@@ -194,8 +194,8 @@ ut::suite<"omni::handle"> handle_suite = [] {
     HANDLE second = create_event_handle();
     omni::unique_handle handle{first};
 
-    expect(fatal(first != nullptr));
-    expect(fatal(second != nullptr));
+    require(first != nullptr);
+    require(second != nullptr);
 
     handle.reset(second);
 
@@ -213,7 +213,7 @@ ut::suite<"omni::handle"> handle_suite = [] {
     HANDLE raw_handle = create_event_handle();
     omni::unique_handle handle{raw_handle};
 
-    expect(fatal(raw_handle != nullptr));
+    require(raw_handle != nullptr);
 
     handle.reset();
 
@@ -227,7 +227,7 @@ ut::suite<"omni::handle"> handle_suite = [] {
     HANDLE raw_handle = create_event_handle();
     omni::unique_handle handle{raw_handle};
 
-    expect(fatal(raw_handle != nullptr));
+    require(raw_handle != nullptr);
 
     const omni::status status = handle.close();
 
@@ -243,7 +243,7 @@ ut::suite<"omni::handle"> handle_suite = [] {
     HANDLE raw_handle = create_event_handle();
     omni::unique_handle source{raw_handle};
 
-    expect(fatal(raw_handle != nullptr));
+    require(raw_handle != nullptr);
 
     omni::unique_handle moved{std::move(source)};
 
@@ -263,8 +263,8 @@ ut::suite<"omni::handle"> handle_suite = [] {
     omni::unique_handle source{source_raw};
     omni::unique_handle target{target_raw};
 
-    expect(fatal(source_raw != nullptr));
-    expect(fatal(target_raw != nullptr));
+    require(source_raw != nullptr);
+    require(target_raw != nullptr);
 
     target = std::move(source);
 
@@ -285,8 +285,8 @@ ut::suite<"omni::handle"> handle_suite = [] {
     omni::unique_handle first{first_raw};
     omni::unique_handle second{second_raw};
 
-    expect(fatal(first_raw != nullptr));
-    expect(fatal(second_raw != nullptr));
+    require(first_raw != nullptr);
+    require(second_raw != nullptr);
 
     swap(first, second);
 
@@ -306,7 +306,7 @@ ut::suite<"omni::handle"> handle_suite = [] {
   "destructor closes the owned handle"_test = [] {
     HANDLE raw_handle = create_event_handle();
 
-    expect(fatal(raw_handle != nullptr));
+    require(raw_handle != nullptr);
 
     {
       omni::unique_handle handle{raw_handle};
@@ -316,4 +316,4 @@ ut::suite<"omni::handle"> handle_suite = [] {
 
     expect(is_closed_os_handle(raw_handle));
   };
-};
+}

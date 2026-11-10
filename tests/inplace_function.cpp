@@ -58,7 +58,7 @@ namespace {
 
 } // namespace
 
-ut::suite<"omni::detail::inplace_function"> inplace_function_suite = [] {
+int main() {
   "invokes free functions and forwards arguments"_test = [] {
     inplace_function<int(int, int)> function{add};
 
@@ -167,8 +167,8 @@ ut::suite<"omni::detail::inplace_function"> inplace_function_suite = [] {
   "empty wrappers throw std::bad_function_call"_test = [] {
     inplace_function<int()> function{};
 
-    expect(throws<std::bad_function_call>([&function] { static_cast<void>(function()); }));
+    expect(omni::tests::throws_as<std::bad_function_call>([&function] { static_cast<void>(function()); }));
   };
 
 #endif
-};
+}

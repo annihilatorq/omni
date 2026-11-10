@@ -62,7 +62,7 @@ namespace {
 
 } // namespace
 
-ut::suite<"omni::api_sets"> api_sets_suite = [] {
+int main() {
   "public api set contracts follow the official naming convention"_test = [] {
     std::size_t entry_count{};
     std::size_t public_contract_count{};
@@ -98,7 +98,7 @@ ut::suite<"omni::api_sets"> api_sets_suite = [] {
     bool logged_missing_api_fallback{};
     bool logged_e_notimpl_fallback{};
 
-    expect(fatal(static_cast<bool>(api_query)));
+    require(static_cast<bool>(api_query));
 
     for (const omni::api_set& api_set : omni::api_sets{}) {
       std::string contract_name = tests::narrow_ascii(api_set.contract_name());
@@ -161,8 +161,8 @@ ut::suite<"omni::api_sets"> api_sets_suite = [] {
       return api_query.is_api_set_implemented(contract_name.c_str()) == FALSE && !has_non_empty_default_host(api_set);
     });
 
-    expect(fatal(static_cast<bool>(api_query)));
-    expect(fatal(unavailable_api_set != api_sets.end()));
+    require(static_cast<bool>(api_query));
+    require(unavailable_api_set != api_sets.end());
 
     for (const omni::api_set_host& host : unavailable_api_set->hosts()) {
       expect(host.value.empty());
@@ -175,7 +175,7 @@ ut::suite<"omni::api_sets"> api_sets_suite = [] {
       return find_contract_version_suffix(api_set.contract_name()) != std::wstring_view::npos;
     });
 
-    expect(fatal(versioned_api_set != api_sets.end()));
+    require(versioned_api_set != api_sets.end());
 
     std::wstring_view contract_name = versioned_api_set->contract_name();
     auto version_suffix = find_contract_version_suffix(contract_name);
@@ -186,12 +186,12 @@ ut::suite<"omni::api_sets"> api_sets_suite = [] {
     auto exact_lookup = api_sets.lookup(omni::hash<omni::default_hash>(contract_name));
     auto versionless_lookup = api_sets.lookup(omni::hash<omni::default_hash>(versionless_contract_name));
 
-    expect(fatal(exact_it != api_sets.end()));
-    expect(fatal(versionless_it != api_sets.end()));
-    expect(fatal(exact_lookup.has_value()));
-    expect(fatal(versionless_lookup.has_value()));
+    require(exact_it != api_sets.end());
+    require(versionless_it != api_sets.end());
+    require(exact_lookup.has_value());
+    require(versionless_lookup.has_value());
     expect(versionless_it->contract_name() == exact_it->contract_name());
     expect(versionless_lookup->contract_name() == exact_lookup->contract_name());
     expect(!api_sets.lookup(L"omni-contract-that-does-not-exist").has_value());
   };
-};
+}
