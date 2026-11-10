@@ -173,7 +173,7 @@ Every file in [`examples/`](examples) builds as a standalone executable:
 Requirements:
 
 - Windows
-- CMake 3.21+
+- CMake 3.21+ (3.31+ to build tests)
 - A C++23 compiler
 
 Top-level builds enable examples and tests by default. A minimal configure/build looks like this:
@@ -221,7 +221,7 @@ ctest --test-dir build --output-on-failure
 
 If you use a multi-config generator, add `-C Release` or your chosen configuration.
 
-Tests use [`boost.ut`](https://github.com/boost-ext/ut). If it is not already available, CMake fetches it automatically.
+Tests use [`annihilatorq/ut`](https://github.com/annihilatorq/ut). CMake fetches a pinned revision automatically unless the `ut::ut` target is already available.
 
 ## Configuration
 

@@ -14,18 +14,25 @@
 #include "omni/module.hpp"
 #include "omni/modules.hpp"
 
-#include <boost/ut.hpp>
+#include <ut/ut.hpp>
 
-namespace ut = boost::ut;
-using ut::expect;
-using ut::fatal;
-using ut::operator""_test;
-
-#ifdef OMNI_HAS_EXCEPTIONS
-using ut::throws;
-#endif
+using namespace ut;
 
 namespace omni::tests {
+
+#ifdef OMNI_HAS_EXCEPTIONS
+  template <class Exception, class Callable>
+  [[nodiscard]] bool throws_as(const Callable& callable) {
+    try {
+      callable();
+    } catch (const Exception&) {
+      return true;
+    } catch (...) {
+      return false;
+    }
+    return false;
+  }
+#endif
 
   struct manual_export_info {
     std::size_t function_index{};

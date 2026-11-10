@@ -58,117 +58,119 @@ namespace {
 
 } // namespace
 
-ut::suite<"omni::detail::inplace_function"> inplace_function_suite = [] {
-  "invokes free functions and forwards arguments"_test = [] {
-    inplace_function<int(int, int)> function{add};
+int main() {
+  ut::suite inplace_function_suite = [] {
+    "invokes free functions and forwards arguments"_test = [] {
+      inplace_function<int(int, int)> function{add};
 
-    expect(function(40, 2) == 42);
-    expect(function(-10, 3) == -7);
-  };
+      expect(function(40, 2) == 42);
+      expect(function(-10, 3) == -7);
+    };
 
-  "mutable lambdas keep their internal state between calls"_test = [] {
-    inplace_function<int()> function{[count = 0]() mutable { return ++count; }};
+    "mutable lambdas keep their internal state between calls"_test = [] {
+      inplace_function<int()> function{[count = 0]() mutable { return ++count; }};
 
-    expect(function() == 1);
-    expect(function() == 2);
-    expect(function() == 3);
-  };
+      expect(function() == 1);
+      expect(function() == 2);
+      expect(function() == 3);
+    };
 
-  "void callables can mutate arguments"_test = [] {
-    inplace_function<void(int&)> function{[](int& value) { value += 7; }};
-    int value = 35;
+    "void callables can mutate arguments"_test = [] {
+      inplace_function<void(int&)> function{[](int& value) { value += 7; }};
+      int value = 35;
 
-    function(value);
+      function(value);
 
-    expect(value == 42);
-  };
+      expect(value == 42);
+    };
 
-  "reference return types propagate the original object"_test = [] {
-    int value = 41;
-    inplace_function<int&()> function{[&value]() -> int& { return value; }};
+    "reference return types propagate the original object"_test = [] {
+      int value = 41;
+      inplace_function<int&()> function{[&value]() -> int& { return value; }};
 
-    function() = 42;
+      function() = 42;
 
-    expect(value == 42);
-    expect(&function() == &value);
-  };
+      expect(value == 42);
+      expect(&function() == &value);
+    };
 
-  "destroying the wrapper destroys the stored callable"_test = [] {
-    int destroy_count = 0;
-
-    {
-      lifecycle_functor callable{.destroy_count = &destroy_count, .multiplier = 6};
+    "destroying the wrapper destroys the stored callable"_test = [] {
+      int destroy_count = 0;
 
       {
-        inplace_function<int(int)> function{callable};
+        lifecycle_functor callable{.destroy_count = &destroy_count, .multiplier = 6};
 
-        expect(function(7) == 42);
-        expect(destroy_count == 0);
+        {
+          inplace_function<int(int)> function{callable};
+
+          expect(function(7) == 42);
+          expect(destroy_count == 0);
+        }
+
+        expect(destroy_count == 1);
       }
 
-      expect(destroy_count == 1);
-    }
+      expect(destroy_count == 2);
+    };
 
-    expect(destroy_count == 2);
-  };
+    "copy construction copies callable state"_test = [] {
+      inplace_function<int()> first{counter_functor{.value = 0}};
+      auto second = first;
 
-  "copy construction copies callable state"_test = [] {
-    inplace_function<int()> first{counter_functor{.value = 0}};
-    auto second = first;
+      expect(first() == 1);
+      expect(first() == 2);
+      expect(second() == 1);
+      expect(second() == 2);
+    };
 
-    expect(first() == 1);
-    expect(first() == 2);
-    expect(second() == 1);
-    expect(second() == 2);
-  };
+    "copy assignment replaces the stored callable"_test = [] {
+      inplace_function<int()> destination{counter_functor{.value = 0}};
+      inplace_function<int()> source{counter_functor{.value = 40}};
 
-  "copy assignment replaces the stored callable"_test = [] {
-    inplace_function<int()> destination{counter_functor{.value = 0}};
-    inplace_function<int()> source{counter_functor{.value = 40}};
+      expect(destination() == 1);
 
-    expect(destination() == 1);
+      destination = source;
 
-    destination = source;
+      expect(destination() == 41);
+      expect(source() == 41);
+    };
 
-    expect(destination() == 41);
-    expect(source() == 41);
-  };
+    "move construction preserves callable behavior"_test = [] {
+      inplace_function<int()> source{counter_functor{.value = 41}};
+      auto moved = std::move(source);
 
-  "move construction preserves callable behavior"_test = [] {
-    inplace_function<int()> source{counter_functor{.value = 41}};
-    auto moved = std::move(source);
+      expect(moved() == 42);
+      expect(moved() == 43);
+    };
 
-    expect(moved() == 42);
-    expect(moved() == 43);
-  };
+    "move assignment keeps the new callable invocable"_test = [] {
+      inplace_function<int()> destination{counter_functor{.value = 0}};
+      inplace_function<int()> source{counter_functor{.value = 41}};
 
-  "move assignment keeps the new callable invocable"_test = [] {
-    inplace_function<int()> destination{counter_functor{.value = 0}};
-    inplace_function<int()> source{counter_functor{.value = 41}};
+      destination = std::move(source);
 
-    destination = std::move(source);
+      expect(destination() == 42);
+      expect(destination() == 43);
+    };
 
-    expect(destination() == 42);
-    expect(destination() == 43);
-  };
+    "swap exchanges stored callables"_test = [] {
+      inplace_function<int()> left{counter_functor{.value = 0}};
+      inplace_function<int()> right{counter_functor{.value = 40}};
 
-  "swap exchanges stored callables"_test = [] {
-    inplace_function<int()> left{counter_functor{.value = 0}};
-    inplace_function<int()> right{counter_functor{.value = 40}};
+      left.swap(right);
 
-    left.swap(right);
-
-    expect(left() == 41);
-    expect(right() == 1);
-  };
+      expect(left() == 41);
+      expect(right() == 1);
+    };
 
 #ifdef OMNI_HAS_EXCEPTIONS
 
-  "empty wrappers throw std::bad_function_call"_test = [] {
-    inplace_function<int()> function{};
+    "empty wrappers throw std::bad_function_call"_test = [] {
+      inplace_function<int()> function{};
 
-    expect(throws<std::bad_function_call>([&function] { static_cast<void>(function()); }));
-  };
+      expect(omni::tests::throws_as<std::bad_function_call>([&function] { static_cast<void>(function()); }));
+    };
 
 #endif
-};
+  };
+}
