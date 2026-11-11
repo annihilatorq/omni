@@ -114,20 +114,10 @@ namespace omni::tests {
     get_api_set_module_base_name_fn get_api_set_module_base_name{};
   };
 
-  enum class api_set_module_base_name_resolution {
-    direct_query,
-    fallback_missing_api,
-    fallback_e_notimpl,
-  };
-
   struct api_set_module_base_name_result {
     HRESULT hr{};
     std::wstring module_base_name;
-    api_set_module_base_name_resolution resolution{api_set_module_base_name_resolution::direct_query};
-
-    [[nodiscard]] bool used_fallback() const noexcept {
-      return resolution != api_set_module_base_name_resolution::direct_query;
-    }
+    bool used_fallback{};
   };
 
   [[nodiscard]] inline std::string narrow_ascii(std::wstring_view value) {
@@ -159,21 +149,13 @@ namespace omni::tests {
         return {
           .hr = hr,
           .module_base_name = std::move(module_base_name),
-          .resolution = api_set_module_base_name_resolution::direct_query,
         };
       }
 
       if (hr != E_NOTIMPL) {
-        return {
-          .hr = hr,
-          .resolution = api_set_module_base_name_resolution::direct_query,
-        };
+        return {.hr = hr};
       }
     }
-
-    const auto resolution = api_query.get_api_set_module_base_name == nullptr ?
-                              api_set_module_base_name_resolution::fallback_missing_api :
-                              api_set_module_base_name_resolution::fallback_e_notimpl;
 
     std::wstring contract_name_storage{contract_name.begin(), contract_name.end()};
     if (!contract_name_storage.ends_with(L".dll")) {
@@ -182,17 +164,14 @@ namespace omni::tests {
 
     loaded_library api_set_module{contract_name_storage.c_str()};
     if (!api_set_module) {
-      return {
-        .hr = E_FAIL,
-        .resolution = resolution,
-      };
+      return {.hr = E_FAIL, .used_fallback = true};
     }
 
     auto module_path = get_module_path(api_set_module.handle);
     return {
       .hr = S_OK,
       .module_base_name = module_path.filename().wstring(),
-      .resolution = resolution,
+      .used_fallback = true,
     };
   }
 
