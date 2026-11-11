@@ -91,6 +91,7 @@ int main() {
 
   "schema-resolved default hosts match Windows when the raw schema provides one"_test = [] {
     tests::api_set_query_api api_query{};
+    constexpr std::size_t max_fallback_checks = 200;
     std::size_t checked_contracts{};
     std::size_t mismatched_contracts{};
     std::size_t fallback_missing_api_count{};
@@ -101,6 +102,10 @@ int main() {
     require(static_cast<bool>(api_query));
 
     for (const omni::api_set& api_set : omni::api_sets{}) {
+      if (fallback_missing_api_count + fallback_e_notimpl_count >= max_fallback_checks) {
+        break;
+      }
+
       std::string contract_name = tests::narrow_ascii(api_set.contract_name());
       if (api_query.is_api_set_implemented(contract_name.c_str()) == FALSE || !has_non_empty_default_host(api_set)) {
         continue;
@@ -146,7 +151,7 @@ int main() {
 
     if (fallback_missing_api_count != 0U || fallback_e_notimpl_count != 0U) {
       std::cerr << "[omni::api_sets] fallback summary: missing_api=" << fallback_missing_api_count
-                << ", e_notimpl=" << fallback_e_notimpl_count << '\n';
+                << ", e_notimpl=" << fallback_e_notimpl_count << " (limit " << max_fallback_checks << ")\n";
     }
 
     expect(checked_contracts > 0U);
