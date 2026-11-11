@@ -18,46 +18,36 @@ namespace {
     return default_host.has_value() && !default_host->value.empty();
   }
 
-  [[nodiscard]] std::size_t find_contract_version_suffix(std::wstring_view contract_name) {
-    auto cursor = contract_name.size();
-
-    const auto consume_decimal = [&contract_name](std::size_t& index) {
-      auto end = index;
-      while (index > 0 && contract_name[index - 1] >= L'0' && contract_name[index - 1] <= L'9') {
-        --index;
-      }
-
-      return index != end;
-    };
-
-    if (!consume_decimal(cursor) || cursor == 0 || contract_name[cursor - 1] != L'-') {
-      return std::wstring_view::npos;
-    }
-    --cursor;
-
-    if (!consume_decimal(cursor) || cursor == 0 || contract_name[cursor - 1] != L'-') {
-      return std::wstring_view::npos;
-    }
-    --cursor;
-
-    if (!consume_decimal(cursor) || cursor < 2 || contract_name[cursor - 1] != L'l' || contract_name[cursor - 2] != L'-') {
-      return std::wstring_view::npos;
+  [[nodiscard]] bool consume_trailing_number(std::wstring_view& text) {
+    auto last_non_digit = text.find_last_not_of(L"0123456789");
+    auto digits_begin = last_non_digit == std::wstring_view::npos ? 0U : last_non_digit + 1;
+    if (digits_begin == text.size()) {
+      return false;
     }
 
-    return cursor - 2;
+    text.remove_suffix(text.size() - digits_begin);
+    return true;
   }
 
-  [[nodiscard]] std::string_view resolution_reason(tests::api_set_module_base_name_resolution resolution) {
-    switch (resolution) {
-    case tests::api_set_module_base_name_resolution::direct_query:
-      return "direct query";
-    case tests::api_set_module_base_name_resolution::fallback_missing_api:
-      return "GetApiSetModuleBaseName is unavailable";
-    case tests::api_set_module_base_name_resolution::fallback_e_notimpl:
-      return "GetApiSetModuleBaseName returned E_NOTIMPL";
+  [[nodiscard]] std::size_t find_contract_version_suffix(std::wstring_view contract_name) {
+    for (int segment = 0; segment < 3; ++segment) {
+      if (!consume_trailing_number(contract_name)) {
+        return std::wstring_view::npos;
+      }
+
+      if (segment < 2) {
+        if (!contract_name.ends_with(L'-')) {
+          return std::wstring_view::npos;
+        }
+        contract_name.remove_suffix(1);
+      }
     }
 
-    return "unknown resolution path";
+    if (!contract_name.ends_with(L"-l")) {
+      return std::wstring_view::npos;
+    }
+
+    return contract_name.size() - 2;
   }
 
 } // namespace
@@ -93,80 +83,63 @@ int main() {
     tests::api_set_query_api api_query{};
     constexpr std::size_t max_fallback_checks = 200;
     std::size_t checked_contracts{};
-    std::size_t mismatched_contracts{};
-    std::size_t fallback_missing_api_count{};
-    std::size_t fallback_e_notimpl_count{};
-    bool logged_missing_api_fallback{};
-    bool logged_e_notimpl_fallback{};
+    std::size_t fallback_checks{};
 
     require(static_cast<bool>(api_query));
 
     for (const omni::api_set& api_set : omni::api_sets{}) {
-      if (fallback_missing_api_count + fallback_e_notimpl_count >= max_fallback_checks) {
+      if (fallback_checks >= max_fallback_checks) {
         break;
       }
 
+      auto default_host = api_set.default_host();
+      if (!default_host.has_value() || default_host->value.empty()) {
+        continue;
+      }
+
       std::string contract_name = tests::narrow_ascii(api_set.contract_name());
-      if (api_query.is_api_set_implemented(contract_name.c_str()) == FALSE || !has_non_empty_default_host(api_set)) {
+      if (api_query.is_api_set_implemented(contract_name.c_str()) == FALSE) {
         continue;
       }
 
       auto module_base_name = tests::query_api_set_module_base_name(api_query, contract_name);
-      switch (module_base_name.resolution) {
-      case tests::api_set_module_base_name_resolution::direct_query:
-        break;
-      case tests::api_set_module_base_name_resolution::fallback_missing_api:
-        ++fallback_missing_api_count;
-        if (!logged_missing_api_fallback) {
-          std::cerr << "[omni::api_sets] falling back to LoadLibrary-based API-set resolution because "
-                    << resolution_reason(module_base_name.resolution) << "; first contract=\"" << contract_name << "\"\n";
-          logged_missing_api_fallback = true;
-        }
-        break;
-      case tests::api_set_module_base_name_resolution::fallback_e_notimpl:
-        ++fallback_e_notimpl_count;
-        if (!logged_e_notimpl_fallback) {
-          std::cerr << "[omni::api_sets] falling back to LoadLibrary-based API-set resolution because "
-                    << resolution_reason(module_base_name.resolution) << "; first contract=\"" << contract_name << "\"\n";
-          logged_e_notimpl_fallback = true;
-        }
-        break;
-      }
+      fallback_checks += module_base_name.used_fallback;
 
       if (FAILED(module_base_name.hr)) {
         continue;
       }
 
-      auto default_host = api_set.default_host();
       auto resolved_host = api_set.resolve_host();
-      bool host_match = default_host.has_value() && resolved_host.has_value() &&
-                        equal_module_name(default_host->value, module_base_name.module_base_name) &&
-                        equal_module_name(resolved_host->value, module_base_name.module_base_name);
+      expect(equal_module_name(default_host->value, module_base_name.module_base_name) && resolved_host.has_value() &&
+             equal_module_name(resolved_host->value, module_base_name.module_base_name))
+        << "host mismatch, contract=[" << contract_name << "]";
 
       ++checked_contracts;
-      if (!host_match) {
-        ++mismatched_contracts;
-      }
     }
 
-    if (fallback_missing_api_count != 0U || fallback_e_notimpl_count != 0U) {
-      std::cerr << "[omni::api_sets] fallback summary: missing_api=" << fallback_missing_api_count
-                << ", e_notimpl=" << fallback_e_notimpl_count << " (limit " << max_fallback_checks << ")\n";
+    if (fallback_checks != 0U) {
+      std::cerr << "[omni::api_sets] " << fallback_checks << " contracts resolved via LoadLibrary fallback (limit "
+                << max_fallback_checks << ")\n";
     }
 
     expect(checked_contracts > 0U);
-    expect(mismatched_contracts == 0U);
   };
 
   "contracts without an implementation are reported unavailable by Windows"_test = [] {
     tests::api_set_query_api api_query{};
     omni::api_sets api_sets{};
-    auto unavailable_api_set = api_sets.find_if([&api_query](const omni::api_set& api_set) {
-      std::string contract_name = tests::narrow_ascii(api_set.contract_name());
-      return api_query.is_api_set_implemented(contract_name.c_str()) == FALSE && !has_non_empty_default_host(api_set);
-    });
 
     require(static_cast<bool>(api_query));
+
+    auto unavailable_api_set = api_sets.find_if([&api_query](const omni::api_set& api_set) {
+      if (has_non_empty_default_host(api_set)) {
+        return false;
+      }
+
+      std::string contract_name = tests::narrow_ascii(api_set.contract_name());
+      return api_query.is_api_set_implemented(contract_name.c_str()) == FALSE;
+    });
+
     require(unavailable_api_set != api_sets.end());
 
     for (const omni::api_set_host& host : unavailable_api_set->hosts()) {
